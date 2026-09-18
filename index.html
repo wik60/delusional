@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Delusional Crew — niezależna marka streetwear. Poznaj aktualny drop i zamów online." />
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Delusional Crew</title>
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <div class="announcement">DARMOWA DOSTAWA W POLSCE OD 350 PLN</div>
+
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="Delusional Crew — strona główna">DELUSIONAL</a>
+      <nav aria-label="Główna nawigacja">
+        <a href="#shop">SKLEP</a>
+        <a href="#details">O DROP'IE</a>
+        <a href="#contact">KONTAKT</a>
+      </nav>
+      <button class="cart-trigger" type="button" aria-controls="cartDrawer" aria-expanded="false">
+        KOSZYK <span id="cartCount">0</span>
+      </button>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <video class="hero-video" autoplay muted loop playsinline aria-hidden="true">
+          <source src="./brand-film.webm" type="video/webm" />
+        </video>
+        <div class="hero-shade"></div>
+        <div class="hero-copy">
+          <p class="eyebrow">DROP 01 / AVAILABLE NOW</p>
+          <h1 id="hero-title">WEAR THE<br />DELUSION.</h1>
+          <a class="button button-light" href="#shop">ZOBACZ DROP</a>
+        </div>
+        <p class="hero-note">WARSAW / COPENHAGEN<br />EST. 2026</p>
+      </section>
+
+      <section class="marquee" aria-label="Informacje o produkcie">
+        <div class="marquee-track">
+          <span>420 GSM</span><i>✦</i><span>100% COTTON</span><i>✦</i><span>BOXY CROPPED FIT</span><i>✦</i>
+          <span>420 GSM</span><i>✦</i><span>100% COTTON</span><i>✦</i><span>BOXY CROPPED FIT</span><i>✦</i>
+        </div>
+      </section>
+
+      <section class="shop-section" id="shop">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">CURRENT DROP</p>
+            <h2>THE CLASSIC ZIP UP</h2>
+          </div>
+          <p class="drop-copy">Ciężka bawełna, krótki boxy fit i charakterystyczny print. Jeden drop — bez masowej produkcji.</p>
+        </div>
+
+        <div class="product-layout">
+          <div class="product-gallery">
+            <figure class="product-image product-image-main">
+              <img src="./images/classic-zip-front.jpg" alt="Szara bluza Delusional Classic Zip Up — przód" />
+              <figcaption>01 / FRONT</figcaption>
+            </figure>
+            <figure class="product-image">
+              <img src="./images/classic-zip-back.jpg" alt="Szara bluza Delusional Classic Zip Up — tył" loading="lazy" />
+              <figcaption>02 / BACK</figcaption>
+            </figure>
+          </div>
+
+          <aside class="product-card" aria-labelledby="productName">
+            <div class="product-status"><span></span> DOSTĘPNA</div>
+            <h2 id="productName">DELUSIONAL<br />CLASSIC ZIP UP</h2>
+            <div class="price-row">
+              <strong>220 PLN</strong>
+              <s>260 PLN</s>
+            </div>
+            <p class="product-lead">Szara bluza rozpinana o gramaturze 420 GSM. Luźny, skrócony krój i miękka, ciężka bawełna.</p>
+
+            <fieldset class="size-picker">
+              <legend>WYBIERZ ROZMIAR</legend>
+              <div class="size-options" id="sizeOptions">
+                <button type="button" data-size="S">S</button>
+                <button type="button" data-size="M">M</button>
+                <button type="button" data-size="L">L</button>
+                <button type="button" data-size="XL">XL</button>
+              </div>
+            </fieldset>
+
+            <p class="fit-note">Dla lepszego dopasowania polecamy wybrać rozmiar mniejszy.</p>
+            <button class="button button-dark add-to-cart" id="addToCart" type="button">DODAJ DO KOSZYKA</button>
+
+            <div class="product-accordions" id="details">
+              <details open>
+                <summary>SZCZEGÓŁY</summary>
+                <ul>
+                  <li>100% bawełna</li>
+                  <li>420 GSM</li>
+                  <li>Boxy cropped fit</li>
+                  <li>Kolor: szary</li>
+                </ul>
+              </details>
+              <details>
+                <summary>PIELĘGNACJA</summary>
+                <p>Prać na lewej stronie w maks. 30°C. Nie wybielać. Suszyć w niskiej temperaturze.</p>
+              </details>
+              <details>
+                <summary>DOSTAWA I ZWROTY</summary>
+                <p>Koszt i dostępne metody dostawy zobaczysz przed płatnością. Na zwrot masz 14 dni od odbioru.</p>
+              </details>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="manifesto">
+        <img src="./images/brand-mark.png" alt="" aria-hidden="true" />
+        <p>DELUSIONAL ISN'T A STATE OF MIND.<br /><span>IT'S THE UNIFORM.</span></p>
+      </section>
+    </main>
+
+    <footer id="contact">
+      <div class="newsletter">
+        <p class="eyebrow">STAY DELUSIONAL</p>
+        <h2>PIERWSZY DOWIESZ SIĘ<br />O NASTĘPNYM DROPIE.</h2>
+        <form id="newsletterForm">
+          <label class="sr-only" for="newsletterEmail">Adres e-mail</label>
+          <input id="newsletterEmail" name="email" type="email" placeholder="TWÓJ E-MAIL" required autocomplete="email" />
+          <button type="submit" aria-label="Zapisz się">→</button>
+        </form>
+        <p class="form-message" id="newsletterMessage" role="status"></p>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 DELUSIONAL CREW</span>
+        <div>
+          <a href="https://www.instagram.com/delusional_crew/" target="_blank" rel="noreferrer">INSTAGRAM</a>
+          <a href="https://www.tiktok.com/@delusional.crew?lang=pl-PL" target="_blank" rel="noreferrer">TIKTOK</a>
+          <a href="./admin.html">ADMIN</a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="cart-backdrop" id="cartBackdrop" hidden></div>
+    <aside class="cart-drawer" id="cartDrawer" aria-label="Koszyk" aria-hidden="true">
+      <div class="cart-header">
+        <h2>TWÓJ KOSZYK</h2>
+        <button id="closeCart" type="button" aria-label="Zamknij koszyk">×</button>
+      </div>
+      <div class="cart-empty" id="cartEmpty">
+        <p>KOSZYK JEST PUSTY.</p>
+        <button class="text-button" id="continueShopping" type="button">WRÓĆ DO DROP'U</button>
+      </div>
+      <div class="cart-content" id="cartContent" hidden>
+        <div class="cart-line">
+          <img src="./images/classic-zip-front.jpg" alt="Delusional Classic Zip Up" />
+          <div>
+            <h3>CLASSIC ZIP UP</h3>
+            <p>ROZMIAR: <span id="cartSize"></span></p>
+            <div class="quantity">
+              <button id="decreaseQty" type="button" aria-label="Zmniejsz ilość">−</button>
+              <span id="cartQty">1</span>
+              <button id="increaseQty" type="button" aria-label="Zwiększ ilość">+</button>
+            </div>
+          </div>
+          <strong id="lineTotal">220 PLN</strong>
+        </div>
+        <div class="cart-summary">
+          <label class="delivery-country" for="deliveryCountry">
+            <span>KRAJ DOSTAWY</span>
+            <select id="deliveryCountry">
+              <option value="PL">POLSKA — 16,99 PLN</option>
+              <option value="DK">DANIA — 95,90 PLN</option>
+            </select>
+          </label>
+          <div><span>DOSTAWA</span><strong id="shippingTotal">16,99 PLN</strong></div>
+          <div><span>SUMA</span><strong id="cartTotal">220 PLN</strong></div>
+          <p>Dostawa w Polsce jest bezpłatna od 350 PLN.</p>
+          <button class="button button-dark" id="checkoutButton" type="button">PRZEJDŹ DO PŁATNOŚCI</button>
+          <p class="form-message" id="checkoutMessage" role="status"></p>
+        </div>
+      </div>
+    </aside>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
