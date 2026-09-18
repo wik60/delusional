@@ -43,8 +43,6 @@ Deno.serve(async (request: Request) => {
         shipping_postal_code: address?.postal_code,
         shipping_city: address?.city,
         shipping_country: address?.country,
-        subtotal_amount: (session.amount_subtotal || 0) / 100,
-        shipping_amount: (session.shipping_cost?.amount_total || 0) / 100,
         total_amount: (session.amount_total || 0) / 100,
         payment_status: session.payment_status === "paid" ? "paid" : "pending",
         fulfillment_status: session.payment_status === "paid" ? "paid" : "pending",

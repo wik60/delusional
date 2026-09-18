@@ -1,38 +1,84 @@
 import "./styles.css";
-import { PRODUCT, SHIPPING } from "./config.js";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { PRODUCT } from "./config.js";
 import { supabase } from "./supabase.js";
 
-const CART_KEY = "delusional-cart-v1";
-const money = new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 0 });
+const CART_KEY = "delusional-cart-v2";
+const SHIPPING_KEY = "delusional-shipping-v1";
+const money = new Intl.NumberFormat("pl-PL", {
+  style: "currency",
+  currency: "PLN",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
 
-const els = {
-  sizeButtons: [...document.querySelectorAll("[data-size]")],
-  addToCart: document.querySelector("#addToCart"),
-  cartTrigger: document.querySelector(".cart-trigger"),
-  cartCount: document.querySelector("#cartCount"),
-  cartDrawer: document.querySelector("#cartDrawer"),
-  cartBackdrop: document.querySelector("#cartBackdrop"),
-  closeCart: document.querySelector("#closeCart"),
-  continueShopping: document.querySelector("#continueShopping"),
-  cartEmpty: document.querySelector("#cartEmpty"),
-  cartContent: document.querySelector("#cartContent"),
-  cartSize: document.querySelector("#cartSize"),
-  cartQty: document.querySelector("#cartQty"),
-  lineTotal: document.querySelector("#lineTotal"),
-  cartTotal: document.querySelector("#cartTotal"),
-  shippingTotal: document.querySelector("#shippingTotal"),
-  deliveryCountry: document.querySelector("#deliveryCountry"),
-  decreaseQty: document.querySelector("#decreaseQty"),
-  increaseQty: document.querySelector("#increaseQty"),
-  checkoutButton: document.querySelector("#checkoutButton"),
-  checkoutMessage: document.querySelector("#checkoutMessage"),
-  newsletterForm: document.querySelector("#newsletterForm"),
-  newsletterMessage: document.querySelector("#newsletterMessage"),
-  toast: document.querySelector("#toast"),
+const countryViews = {
+  PL: { label: "POLAND", center: [52.05, 19.15], zoom: 6, city: "WARSZAWA", postal: "00-001" },
+  DK: { label: "DENMARK", center: [56.1, 9.5], zoom: 6, city: "KØBENHAVN", postal: "1050" },
 };
+
+const cityViews = {
+  warszawa: [52.2297, 21.0122],
+  krakow: [50.0647, 19.945],
+  wroclaw: [51.1079, 17.0385],
+  poznan: [52.4064, 16.9252],
+  gdansk: [54.352, 18.6466],
+  lodz: [51.7592, 19.456],
+  københavn: [55.6761, 12.5683],
+  kobenhavn: [55.6761, 12.5683],
+  copenhagen: [55.6761, 12.5683],
+  aarhus: [56.1629, 10.2039],
+  odense: [55.4038, 10.4024],
+  aalborg: [57.0488, 9.9217],
+};
+
+const els = Object.fromEntries([
+  "addToCart", "cartCount", "cartDrawer", "cartBackdrop", "closeCart", "continueShopping",
+  "cartEmpty", "cartContent", "cartSize", "cartQty", "lineTotal", "cartTotal",
+  "shippingTotal", "decreaseQty", "increaseQty", "checkoutButton", "checkoutMessage",
+  "shippingForm", "shippingCountry", "shippingCity", "shippingPostal", "shippingMessage",
+  "shippingQuotes", "selectedShipping", "changeShipping", "mapLocation", "toast",
+].map((id) => [id, document.querySelector(`#${id}`)]));
+els.cartTrigger = document.querySelector(".cart-trigger");
+els.sizeButtons = [...document.querySelectorAll("[data-size]")];
 
 let selectedSize = "";
 let cart = readCart();
+let shipping = readShipping();
+let quotes = [];
+
+const map = L.map("shippingMap", {
+  zoomControl: false,
+  scrollWheelZoom: false,
+  attributionControl: true,
+}).setView(countryViews.PL.center, countryViews.PL.zoom);
+L.control.zoom({ position: "bottomright" }).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 18,
+  attribution: "© OpenStreetMap",
+}).addTo(map);
+const destinationMarker = L.circleMarker(countryViews.PL.center, {
+  radius: 9,
+  color: "#15130f",
+  weight: 2,
+  fillColor: "#c2b39f",
+  fillOpacity: 1,
+}).addTo(map);
+
+function normalizeCity(value) {
+  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function updateMap(country, city = "") {
+  const view = countryViews[country] || countryViews.PL;
+  const originalKey = city.trim().toLowerCase();
+  const point = cityViews[originalKey] || cityViews[normalizeCity(city)] || view.center;
+  const zoom = cityViews[originalKey] || cityViews[normalizeCity(city)] ? 11 : view.zoom;
+  destinationMarker.setLatLng(point);
+  map.flyTo(point, zoom, { duration: 0.8 });
+  els.mapLocation.textContent = city ? `${city.toUpperCase()}, ${country}` : view.label;
+}
 
 function readCart() {
   try {
@@ -44,9 +90,25 @@ function readCart() {
   }
 }
 
+function readShipping() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SHIPPING_KEY));
+    if (!parsed?.id || !["PL", "DK"].includes(parsed.country)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function saveCart() {
   if (cart) localStorage.setItem(CART_KEY, JSON.stringify(cart));
   else localStorage.removeItem(CART_KEY);
+  renderCart();
+}
+
+function saveShipping() {
+  if (shipping) localStorage.setItem(SHIPPING_KEY, JSON.stringify(shipping));
+  else localStorage.removeItem(SHIPPING_KEY);
   renderCart();
 }
 
@@ -56,14 +118,19 @@ function renderCart() {
   els.cartEmpty.hidden = Boolean(cart);
   els.cartContent.hidden = !cart;
   if (!cart) return;
+
+  const subtotal = PRODUCT.price * cart.quantity;
+  const shippingAmount = shipping ? Number(shipping.amount) : 0;
   els.cartSize.textContent = cart.size;
   els.cartQty.textContent = String(cart.quantity);
-  const subtotal = PRODUCT.price * cart.quantity;
-  const shippingRule = SHIPPING[els.deliveryCountry.value];
-  const shipping = shippingRule.freeFrom && subtotal >= shippingRule.freeFrom ? 0 : shippingRule.amount;
   els.lineTotal.textContent = money.format(subtotal);
-  els.shippingTotal.textContent = shipping === 0 ? "GRATIS" : money.format(shipping);
-  els.cartTotal.textContent = money.format(subtotal + shipping);
+  els.selectedShipping.textContent = shipping
+    ? `${shipping.carrier} / ${shipping.service}`
+    : "CALCULATE SHIPPING →";
+  els.shippingTotal.textContent = shipping
+    ? (shippingAmount === 0 ? "FREE" : money.format(shippingAmount))
+    : "—";
+  els.cartTotal.textContent = money.format(subtotal + shippingAmount);
 }
 
 function openCart() {
@@ -92,6 +159,76 @@ function showToast(message) {
   showToast.timeout = setTimeout(() => els.toast.classList.remove("is-visible"), 2600);
 }
 
+function renderQuotes() {
+  els.shippingQuotes.replaceChildren();
+  for (const quote of quotes) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "shipping-quote";
+    button.classList.toggle("selected", shipping?.id === quote.id);
+    button.innerHTML = `
+      <span class="carrier-name">${escapeHtml(quote.carrier)}</span>
+      <span class="carrier-service">${escapeHtml(quote.service)} · ${quote.minDays}–${quote.maxDays} DAYS</span>
+      <strong>${quote.amount === 0 ? "FREE" : money.format(quote.amount)}</strong>
+      <i aria-hidden="true"></i>`;
+    button.addEventListener("click", () => {
+      shipping = {
+        ...quote,
+        country: els.shippingCountry.value,
+        city: els.shippingCity.value.trim(),
+        postalCode: els.shippingPostal.value.trim(),
+      };
+      saveShipping();
+      renderQuotes();
+      showToast(`${quote.carrier.toUpperCase()} SELECTED`);
+    });
+    els.shippingQuotes.append(button);
+  }
+}
+
+async function calculateShipping({ silent = false } = {}) {
+  if (!els.shippingForm.reportValidity()) return;
+  const country = els.shippingCountry.value;
+  const city = els.shippingCity.value.trim();
+  const postalCode = els.shippingPostal.value.trim();
+  const subtotal = PRODUCT.price * (cart?.quantity || 1);
+  const submit = els.shippingForm.querySelector("button[type=submit]");
+  submit.disabled = true;
+  if (!silent) els.shippingMessage.textContent = "CALCULATING…";
+
+  try {
+    const { data, error } = await supabase.functions.invoke("shipping-quotes", {
+      body: { country, city, postalCode, subtotal },
+    });
+    if (error) throw error;
+    quotes = data?.quotes || [];
+    if (!quotes.length) throw new Error("No delivery methods");
+
+    if (shipping) {
+      const refreshed = quotes.find((quote) => quote.id === shipping.id);
+      shipping = refreshed ? { ...shipping, ...refreshed, country, city, postalCode } : null;
+      saveShipping();
+    }
+
+    renderQuotes();
+    updateMap(country, city);
+    els.shippingMessage.textContent = "SELECT A DELIVERY METHOD.";
+  } catch (error) {
+    console.error(error);
+    quotes = [];
+    renderQuotes();
+    els.shippingMessage.textContent = "DELIVERY QUOTES ARE TEMPORARILY UNAVAILABLE.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
+  })[character]);
+}
+
 els.sizeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     selectedSize = button.dataset.size;
@@ -101,7 +238,7 @@ els.sizeButtons.forEach((button) => {
 
 els.addToCart.addEventListener("click", () => {
   if (!selectedSize) {
-    showToast("WYBIERZ ROZMIAR");
+    showToast("SELECT SIZE");
     document.querySelector("#sizeOptions").classList.add("attention");
     setTimeout(() => document.querySelector("#sizeOptions").classList.remove("attention"), 600);
     return;
@@ -114,28 +251,63 @@ els.addToCart.addEventListener("click", () => {
 
 els.cartTrigger.addEventListener("click", openCart);
 els.closeCart.addEventListener("click", closeCart);
-els.continueShopping.addEventListener("click", closeCart);
+els.continueShopping.addEventListener("click", () => {
+  closeCart();
+  document.querySelector("#products").scrollIntoView({ behavior: "smooth" });
+});
 els.cartBackdrop.addEventListener("click", closeCart);
-els.deliveryCountry.addEventListener("change", renderCart);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeCart(); });
 
-els.decreaseQty.addEventListener("click", () => {
+els.decreaseQty.addEventListener("click", async () => {
   if (!cart) return;
   cart.quantity -= 1;
   if (cart.quantity < 1) cart = null;
   saveCart();
+  if (cart && shipping) await calculateShipping({ silent: true });
 });
 
-els.increaseQty.addEventListener("click", () => {
+els.increaseQty.addEventListener("click", async () => {
   if (!cart) return;
   cart.quantity = Math.min(10, cart.quantity + 1);
   saveCart();
+  if (shipping) await calculateShipping({ silent: true });
+});
+
+els.changeShipping.addEventListener("click", () => {
+  closeCart();
+  document.querySelector("#shipping").scrollIntoView({ behavior: "smooth" });
+});
+
+els.shippingCountry.addEventListener("change", () => {
+  const view = countryViews[els.shippingCountry.value];
+  els.shippingCity.placeholder = view.city;
+  els.shippingPostal.placeholder = view.postal;
+  quotes = [];
+  shipping = null;
+  saveShipping();
+  renderQuotes();
+  updateMap(els.shippingCountry.value);
+});
+
+els.shippingCity.addEventListener("change", () => updateMap(els.shippingCountry.value, els.shippingCity.value));
+els.shippingForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await calculateShipping();
 });
 
 els.checkoutButton.addEventListener("click", async () => {
   if (!cart) return;
+  if (!shipping) {
+    els.checkoutMessage.textContent = "SELECT A DELIVERY METHOD FIRST.";
+    setTimeout(() => {
+      closeCart();
+      document.querySelector("#shipping").scrollIntoView({ behavior: "smooth" });
+    }, 700);
+    return;
+  }
+
   els.checkoutButton.disabled = true;
-  els.checkoutButton.textContent = "PRZYGOTOWUJĘ PŁATNOŚĆ…";
+  els.checkoutButton.textContent = "PREPARING CHECKOUT…";
   els.checkoutMessage.textContent = "";
   try {
     const { data, error } = await supabase.functions.invoke("create-checkout", {
@@ -143,44 +315,37 @@ els.checkoutButton.addEventListener("click", async () => {
         productSlug: PRODUCT.slug,
         size: cart.size,
         quantity: cart.quantity,
-        shippingCountry: els.deliveryCountry.value,
-        successUrl: `${location.origin}${location.pathname}?payment=success`,
-        cancelUrl: `${location.origin}${location.pathname}?payment=cancelled`,
+        shippingCountry: shipping.country,
+        shippingMethodId: shipping.id,
       },
     });
     if (error) throw error;
-    if (!data?.url) throw new Error("Brak adresu płatności");
+    if (!data?.url) throw new Error("Missing checkout URL");
     location.assign(data.url);
   } catch (error) {
     console.error(error);
-    els.checkoutMessage.textContent = "Płatności są jeszcze konfigurowane. Spróbuj ponownie później.";
+    els.checkoutMessage.textContent = "PAYMENTS ARE STILL BEING CONFIGURED.";
     els.checkoutButton.disabled = false;
-    els.checkoutButton.textContent = "PRZEJDŹ DO PŁATNOŚCI";
+    els.checkoutButton.textContent = "CHECKOUT";
   }
-});
-
-els.newsletterForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const email = new FormData(els.newsletterForm).get("email") || document.querySelector("#newsletterEmail").value;
-  els.newsletterMessage.textContent = "ZAPISUJĘ…";
-  const { error } = await supabase.from("newsletter_subscribers").insert({ email: String(email).trim().toLowerCase() });
-  if (error && error.code !== "23505") {
-    els.newsletterMessage.textContent = "NIE UDAŁO SIĘ ZAPISAĆ. SPRÓBUJ PONOWNIE.";
-    return;
-  }
-  els.newsletterForm.reset();
-  els.newsletterMessage.textContent = "JESTEŚ NA LIŚCIE. DO ZOBACZENIA PRZY DROPIE.";
 });
 
 const paymentState = new URLSearchParams(location.search).get("payment");
 if (paymentState === "success") {
   cart = null;
   saveCart();
-  showToast("PŁATNOŚĆ PRZYJĘTA — DZIĘKUJEMY");
+  showToast("PAYMENT ACCEPTED — THANK YOU");
   history.replaceState({}, "", location.pathname);
 } else if (paymentState === "cancelled") {
-  showToast("PŁATNOŚĆ ANULOWANA — KOSZYK ZOSTAŁ ZACHOWANY");
+  showToast("PAYMENT CANCELLED — YOUR BAG IS SAVED");
   history.replaceState({}, "", location.pathname);
 }
 
+if (shipping) {
+  els.shippingCountry.value = shipping.country;
+  els.shippingCity.value = shipping.city || "";
+  els.shippingPostal.value = shipping.postalCode || "";
+  updateMap(shipping.country, shipping.city);
+  calculateShipping({ silent: true });
+}
 renderCart();

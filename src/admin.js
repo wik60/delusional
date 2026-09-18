@@ -44,7 +44,7 @@ async function loadOrders() {
   els.ordersMessage.textContent = "ŁADOWANIE…";
   const { data: rows, error } = await supabase
     .from("orders")
-    .select("id, order_number, customer_email, customer_name, created_at, total_amount, currency, payment_status, fulfillment_status, shipping_city, shipping_country, order_items(product_name, size, quantity, unit_price)")
+    .select("id, order_number, customer_email, customer_name, created_at, total_amount, currency, payment_status, fulfillment_status, shipping_city, shipping_country, shipping_carrier, shipping_service, order_items(product_name, size, quantity, unit_price)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -85,8 +85,11 @@ function renderOrders() {
   for (const order of visible) {
     const row = document.createElement("tr");
     const itemSummary = order.order_items?.map((item) => `${item.product_name} / ${item.size} × ${item.quantity}`).join(", ") || "—";
+    const deliverySummary = order.shipping_carrier
+      ? `${order.shipping_carrier} / ${order.shipping_service || "dostawa"}`
+      : "Dostawa nieprzypisana";
     row.innerHTML = `
-      <td><strong>${escapeHtml(order.order_number)}</strong><small>${escapeHtml(itemSummary)}</small></td>
+      <td><strong>${escapeHtml(order.order_number)}</strong><small>${escapeHtml(itemSummary)}<br>${escapeHtml(deliverySummary)}</small></td>
       <td>${escapeHtml(order.customer_name || "—")}<small>${escapeHtml(order.customer_email || "—")}</small></td>
       <td>${date.format(new Date(order.created_at))}</td>
       <td><strong>${money.format(Number(order.total_amount))}</strong></td>

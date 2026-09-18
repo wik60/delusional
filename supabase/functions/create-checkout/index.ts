@@ -22,8 +22,9 @@ Deno.serve(async (request: Request) => {
     const productSlug = String(payload.productSlug || "");
     const size = String(payload.size || "").toUpperCase();
     const shippingCountry = String(payload.shippingCountry || "").toUpperCase();
+    const shippingMethodId = String(payload.shippingMethodId || "");
     const quantity = Number(payload.quantity);
-    if (!productSlug || !size || !["PL", "DK"].includes(shippingCountry) || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+    if (!productSlug || !size || !shippingMethodId || !["PL", "DK"].includes(shippingCountry) || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
       return json({ error: "Invalid cart" }, 400);
     }
 
@@ -46,16 +47,17 @@ Deno.serve(async (request: Request) => {
 
     const product = Array.isArray(variant.product) ? variant.product[0] : variant.product;
     const subtotal = Number(product.price) * quantity;
-    const { data: shippingRate, error: shippingError } = await supabaseAdmin
-      .from("shipping_rates")
-      .select("amount, free_from, currency")
+    const { data: shippingMethod, error: shippingError } = await supabaseAdmin
+      .from("shipping_methods")
+      .select("id, carrier, service_name, amount, free_from, currency")
+      .eq("id", shippingMethodId)
       .eq("country_code", shippingCountry)
       .eq("active", true)
       .single();
-    if (shippingError || !shippingRate) return json({ error: "Shipping unavailable" }, 409);
-    const shippingAmount = shippingRate.free_from && subtotal >= Number(shippingRate.free_from)
+    if (shippingError || !shippingMethod) return json({ error: "Shipping unavailable" }, 409);
+    const shippingAmount = shippingMethod.free_from && subtotal >= Number(shippingMethod.free_from)
       ? 0
-      : Number(shippingRate.amount);
+      : Number(shippingMethod.amount);
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -64,6 +66,9 @@ Deno.serve(async (request: Request) => {
         total_amount: subtotal + shippingAmount,
         currency: product.currency,
         shipping_country: shippingCountry,
+        shipping_method_id: shippingMethod.id,
+        shipping_carrier: shippingMethod.carrier,
+        shipping_service: shippingMethod.service_name,
       })
       .select("id, order_number")
       .single();
@@ -103,7 +108,7 @@ Deno.serve(async (request: Request) => {
         price_data: {
           currency: String(product.currency).toLowerCase(),
           unit_amount: Math.round(shippingAmount * 100),
-          product_data: { name: `Dostawa — ${shippingCountry}` },
+          product_data: { name: `${shippingMethod.carrier} — ${shippingMethod.service_name}` },
         },
       });
     }
@@ -115,7 +120,7 @@ Deno.serve(async (request: Request) => {
       billing_address_collection: "required",
       shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
       line_items: lineItems,
-      metadata: { order_id: order.id, order_number: order.order_number },
+      metadata: { order_id: order.id, order_number: order.order_number, shipping_method_id: shippingMethod.id },
       success_url: `${storefrontUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${storefrontUrl}?payment=cancelled`,
     });
