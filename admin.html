@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Panel zamówień — Delusional Crew</title>
+  </head>
+  <body class="admin-body">
+    <main class="admin-shell">
+      <section class="admin-login" id="loginView">
+        <a class="wordmark" href="./index.html">DELUSIONAL</a>
+        <div class="login-card">
+          <p class="eyebrow">PANEL ADMINISTRATORA</p>
+          <h1>ZALOGUJ SIĘ.</h1>
+          <p>Panel jest dostępny wyłącznie dla kont dodanych jako administrator sklepu.</p>
+          <form id="loginForm">
+            <label for="adminEmail">E-MAIL</label>
+            <input id="adminEmail" type="email" required autocomplete="username" />
+            <label for="adminPassword">HASŁO</label>
+            <input id="adminPassword" type="password" required autocomplete="current-password" />
+            <button class="button button-light" type="submit">ZALOGUJ</button>
+          </form>
+          <p class="form-message" id="loginMessage" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="admin-dashboard" id="dashboardView" hidden>
+        <aside class="admin-sidebar">
+          <a class="wordmark" href="./index.html">DELUSIONAL</a>
+          <nav aria-label="Panel administratora">
+            <button class="active" type="button">ZAMÓWIENIA</button>
+          </nav>
+          <button class="text-button" id="logoutButton" type="button">WYLOGUJ</button>
+        </aside>
+
+        <div class="admin-main">
+          <header class="dashboard-header">
+            <div>
+              <p class="eyebrow">BACK OFFICE</p>
+              <h1>ZAMÓWIENIA</h1>
+            </div>
+            <div class="admin-user" id="adminUser"></div>
+          </header>
+
+          <div class="metrics">
+            <article><span>WSZYSTKIE</span><strong id="metricAll">0</strong></article>
+            <article><span>OPŁACONE</span><strong id="metricPaid">0</strong></article>
+            <article><span>DO WYSYŁKI</span><strong id="metricToShip">0</strong></article>
+            <article><span>PRZYCHÓD</span><strong id="metricRevenue">0 PLN</strong></article>
+          </div>
+
+          <div class="orders-toolbar">
+            <label>
+              <span class="sr-only">Szukaj zamówienia</span>
+              <input id="orderSearch" type="search" placeholder="SZUKAJ PO NUMERZE LUB E-MAILU" />
+            </label>
+            <select id="statusFilter" aria-label="Filtr statusu">
+              <option value="all">WSZYSTKIE STATUSY</option>
+              <option value="pending">OCZEKUJE</option>
+              <option value="paid">OPŁACONE</option>
+              <option value="processing">W REALIZACJI</option>
+              <option value="shipped">WYSŁANE</option>
+              <option value="cancelled">ANULOWANE</option>
+            </select>
+            <button class="refresh-button" id="refreshOrders" type="button">ODŚWIEŻ</button>
+          </div>
+
+          <div class="orders-table-wrap">
+            <table class="orders-table">
+              <thead>
+                <tr>
+                  <th>ZAMÓWIENIE</th><th>KLIENT</th><th>DATA</th><th>KWOTA</th><th>PŁATNOŚĆ</th><th>REALIZACJA</th>
+                </tr>
+              </thead>
+              <tbody id="ordersBody"></tbody>
+            </table>
+            <div class="orders-empty" id="ordersEmpty" hidden>
+              <h2>BRAK ZAMÓWIEŃ</h2>
+              <p>Nowe zamówienia pojawią się tutaj automatycznie.</p>
+            </div>
+          </div>
+          <p class="form-message" id="ordersMessage" role="status"></p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./src/admin.js"></script>
+  </body>
+</html>
