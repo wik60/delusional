@@ -15,13 +15,11 @@
         <div class="login-card">
           <p class="eyebrow">PANEL ADMINISTRATORA</p>
           <h1>ZALOGUJ SIĘ.</h1>
-          <p>Panel jest dostępny wyłącznie dla kont dodanych jako administrator sklepu.</p>
+          <p>Panel jest dostępny wyłącznie dla zatwierdzonego adresu administratora. Link do logowania otrzymasz e-mailem.</p>
           <form id="loginForm">
             <label for="adminEmail">E-MAIL</label>
-            <input id="adminEmail" type="email" required autocomplete="username" />
-            <label for="adminPassword">HASŁO</label>
-            <input id="adminPassword" type="password" required autocomplete="current-password" />
-            <button class="button button-light" type="submit">ZALOGUJ</button>
+            <input id="adminEmail" type="email" required autocomplete="email" />
+            <button class="button button-light" type="submit">WYŚLIJ LINK DO LOGOWANIA</button>
           </form>
           <p class="form-message" id="loginMessage" role="alert"></p>
         </div>
