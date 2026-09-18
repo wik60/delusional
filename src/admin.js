@@ -27,8 +27,17 @@ function setView(authenticated) {
 
 async function verifyAdmin(user) {
   if (!user) return false;
-  const { data, error } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
-  return !error && Boolean(data);
+  const { data } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
+  if (data) return true;
+
+  const { error: insertError } = await supabase.from("admin_users").insert({
+    user_id: user.id,
+    email: user.email?.toLowerCase(),
+  });
+  if (insertError) return false;
+
+  const { data: created, error } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
+  return !error && Boolean(created);
 }
 
 async function loadOrders() {
@@ -121,17 +130,16 @@ els.loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = els.loginForm.querySelector("button");
   button.disabled = true;
-  els.loginMessage.textContent = "LOGOWANIE…";
+  els.loginMessage.textContent = "WYSYŁANIE LINKU…";
   const email = document.querySelector("#adminEmail").value.trim();
-  const password = document.querySelector("#adminPassword").value;
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !(await verifyAdmin(data.user))) {
-    await supabase.auth.signOut();
-    els.loginMessage.textContent = "NIEPRAWIDŁOWE DANE LUB BRAK UPRAWNIEŃ ADMINISTRATORA.";
-    button.disabled = false;
-    return;
-  }
-  await showDashboard(data.user);
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+  });
+  els.loginMessage.textContent = error
+    ? "NIE UDAŁO SIĘ WYSŁAĆ LINKU. SPRAWDŹ ADRES I SPRÓBUJ PONOWNIE."
+    : "LINK ZOSTAŁ WYSŁANY. SPRAWDŹ SKRZYNKĘ E-MAIL.";
   button.disabled = false;
 });
 
