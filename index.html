@@ -1,182 +1,166 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Delusional Crew — Delusional Classic Zip Up." />
-    <meta name="theme-color" content="#ffffff" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
-    <title>Delusional Crew — Classic Zip Up</title>
-  </head>
-  <body>
-    <div class="site-loader" id="siteLoader" aria-hidden="true">
-      <div class="site-loader-word" aria-label="DELUSIONAL">
-        <span>D</span><span>E</span><span>L</span><span>U</span><span>S</span><span>I</span><span>O</span><span>N</span><span>A</span><span>L</span>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Delusional Crew — Classic Zip Up." />
+  <meta name="theme-color" content="#f4f4f1" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <title>DELUSIONAL — Classic Zip Up</title>
+  <link rel="stylesheet" href="./src/minimal-home.css" />
+</head>
+<body>
+  <div class="site-loader" id="siteLoader" aria-hidden="true">
+    <div class="site-loader-word" aria-label="DELUSIONAL">
+      <span>D</span><span>E</span><span>L</span><span>U</span><span>S</span><span>I</span><span>O</span><span>N</span><span>A</span><span>L</span>
     </div>
-    <header class="site-header">
-      <a class="wordmark" href="#product">DELUSIONAL</a>
-      <div class="drop-label">DROP 001 / CLASSIC ZIP UP</div>
+  </div>
+
+  <div class="announcement">DROP 001 — CLASSIC ZIP UP — AVAILABLE NOW</div>
+
+  <header class="site-header">
+    <nav class="nav-left" aria-label="Primary navigation">
+      <a href="#product">SHOP</a>
+      <a href="https://www.instagram.com/delusional_crew/" target="_blank" rel="noreferrer">INSTAGRAM</a>
+      <a href="https://www.tiktok.com/@delusional.crew?lang=pl-PL" target="_blank" rel="noreferrer">TIKTOK</a>
+    </nav>
+    <a class="wordmark" href="#product">DELUSIONAL</a>
+    <div class="nav-right">
+      <a class="staff-link" href="./admin.html">ACCOUNT</a>
       <button class="cart-trigger" id="cartTrigger" type="button" aria-controls="cartDrawer" aria-expanded="false">
-        BAG <span id="cartCount">0</span>
+        CART (<span id="cartCount">0</span>)
       </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="product-hero" id="product">
+      <aside class="product-side product-side-left reveal" data-reveal>
+        <div class="product-heading">
+          <p class="eyebrow">DELUSIONAL / 001</p>
+          <h1>CLASSIC ZIP UP</h1>
+          <div class="price-row"><strong>220 PLN</strong><s>260 PLN</s></div>
+        </div>
+
+        <div class="product-description">
+          <p>Heavyweight zip hoodie built around a clean, oversized silhouette.</p>
+          <p>420 GSM cotton<br>Boxy / cropped fit<br>Front + back graphic</p>
+        </div>
+
+        <button class="size-guide-toggle handwritten" id="sizeGuideToggle" type="button" aria-expanded="false" aria-controls="sizeGuide">
+          SIZE GUIDE <span>+</span>
+        </button>
+        <div class="size-guide" id="sizeGuide" hidden>
+          <div><span>S</span><span>64 / 64 / 61 CM</span></div>
+          <div><span>M</span><span>66 / 66 / 62 CM</span></div>
+          <div><span>L</span><span>68 / 68 / 63 CM</span></div>
+          <div><span>XL</span><span>72 / 72 / 65 CM</span></div>
+          <small>CHEST / LENGTH / SLEEVE</small>
+        </div>
+      </aside>
+
+      <section class="product-center reveal" data-reveal>
+        <div class="image-stage" id="imageStage">
+          <img class="product-shot is-active" id="frontImage" src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-front.jpg?v=2" alt="Delusional Classic Zip Up — front" />
+          <img class="product-shot" id="backImage" src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-back.jpg?v=2" alt="Delusional Classic Zip Up — back" />
+          <button class="image-nav image-nav-left" id="prevImage" type="button" aria-label="Previous view">←</button>
+          <button class="image-nav image-nav-right" id="nextImage" type="button" aria-label="Next view">→</button>
+        </div>
+        <div class="view-switch" aria-label="Product view">
+          <button class="active" type="button" data-view="front">FRONT</button>
+          <button type="button" data-view="back">BACK</button>
+        </div>
+      </section>
+
+      <aside class="product-side product-side-right reveal" data-reveal>
+        <p class="eyebrow">SELECT SIZE</p>
+        <div class="size-options" id="sizeOptions">
+          <button type="button" data-size="S">S</button>
+          <button type="button" data-size="M">M</button>
+          <button type="button" data-size="L">L</button>
+          <button type="button" data-size="XL">XL</button>
+        </div>
+
+        <div class="quantity-control">
+          <button id="qtyDown" type="button" aria-label="Decrease quantity">−</button>
+          <span id="qtyValue">1</span>
+          <button id="qtyUp" type="button" aria-label="Increase quantity">+</button>
+        </div>
+
+        <button class="add-button" id="addToCart" type="button">ADD TO CART — 220 PLN</button>
+        <p class="form-message" id="productMessage" role="status"></p>
+        <p class="micro-copy">HOVER PRODUCT TO SEE BACK</p>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>© 2026 DELUSIONAL CREW</span>
+    <span>WARSAW / POLAND</span>
+  </footer>
+
+  <div class="cart-backdrop" id="cartBackdrop" hidden></div>
+  <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
+    <header class="cart-header">
+      <div><span>YOUR CART</span><strong id="cartHeaderCount">0 ITEM</strong></div>
+      <button id="closeCart" type="button" aria-label="Close bag">×</button>
     </header>
 
-    <main>
-      <section class="product-hero" id="product">
-        <aside class="product-side product-side-left reveal" data-reveal>
-          <div class="side-block">
-            <p class="section-label">SELECT SIZE</p>
-            <div class="size-options" id="sizeOptions">
-              <button type="button" data-size="S">S</button>
-              <button type="button" data-size="M">M</button>
-              <button type="button" data-size="L">L</button>
-              <button type="button" data-size="XL">XL</button>
-            </div>
+    <div class="cart-empty" id="cartEmpty">
+      <p>YOUR CART IS EMPTY.</p>
+      <button class="text-button" id="continueShopping" type="button">BACK TO PRODUCT</button>
+    </div>
+
+    <div class="cart-content" id="cartContent" hidden>
+      <section class="cart-line">
+        <img src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-front.jpg?v=2" alt="Delusional Classic Zip Up" />
+        <div>
+          <h2>CLASSIC ZIP UP</h2>
+          <p>SIZE <span id="cartSize">—</span></p>
+          <div class="cart-quantity">
+            <button id="cartQtyDown" type="button">−</button>
+            <span id="cartQty">1</span>
+            <button id="cartQtyUp" type="button">+</button>
           </div>
-
-          <button class="size-guide-toggle" id="sizeGuideToggle" type="button" aria-expanded="false" aria-controls="sizeGuide">
-            SIZE GUIDE <span>+</span>
-          </button>
-
-          <div class="size-guide" id="sizeGuide" hidden>
-            <div><span>S</span><span>64 / 64 / 61 CM</span></div>
-            <div><span>M</span><span>66 / 66 / 62 CM</span></div>
-            <div><span>L</span><span>68 / 68 / 63 CM</span></div>
-            <div><span>XL</span><span>72 / 72 / 65 CM</span></div>
-            <small>CHEST / LENGTH / SLEEVE</small>
-          </div>
-
-          <p class="micro-copy">FOR A CLOSER FIT, CHOOSE ONE SIZE DOWN.</p>
-        </aside>
-
-        <section class="product-center reveal" data-reveal>
-          <div class="image-stage" id="imageStage">
-            <img class="product-shot is-active" id="frontImage" src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-front.jpg?v=2" alt="Delusional Classic Zip Up — front" />
-            <img class="product-shot" id="backImage" src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-back.jpg?v=2" alt="Delusional Classic Zip Up — back" />
-            <button class="image-nav image-nav-left" id="prevImage" type="button" aria-label="Show previous view">←</button>
-            <button class="image-nav image-nav-right" id="nextImage" type="button" aria-label="Show next view">→</button>
-          </div>
-          <div class="view-switch" aria-label="Product view">
-            <button class="active" type="button" data-view="front">FRONT</button>
-            <button type="button" data-view="back">BACK</button>
-          </div>
-        </section>
-
-        <aside class="product-side product-side-right reveal" data-reveal>
-          <div>
-            <p class="section-label">DELUSIONAL CREW / 001</p>
-            <h1>CLASSIC<br />ZIP UP</h1>
-            <div class="price-row"><strong>220 PLN</strong><s>260 PLN</s></div>
-          </div>
-
-          <p class="product-copy">420 GSM heavyweight cotton. Boxy cropped fit. Full zip. Front wordmark and oversized back graphic.</p>
-
-          <ul class="product-specs">
-            <li><span>MATERIAL</span><b>100% COTTON</b></li>
-            <li><span>WEIGHT</span><b>420 GSM</b></li>
-            <li><span>FIT</span><b>BOXY / CROPPED</b></li>
-          </ul>
-
-          <div class="quantity-control">
-            <button id="qtyDown" type="button" aria-label="Decrease quantity">−</button>
-            <span id="qtyValue">1</span>
-            <button id="qtyUp" type="button" aria-label="Increase quantity">+</button>
-          </div>
-
-          <button class="add-button" id="addToCart" type="button">ADD TO BAG</button>
-          <p class="form-message" id="productMessage" role="status"></p>
-        </aside>
+        </div>
+        <strong id="lineTotal">220 PLN</strong>
       </section>
 
-      <section class="statement reveal" data-reveal>
-        <p>ONE PRODUCT.</p>
-        <p>ONE DROP.</p>
-        <p>NO DISTRACTIONS.</p>
+      <section class="checkout-step">
+        <div class="step-heading"><span>01</span><h3>DELIVERY DETAILS</h3></div>
+        <form class="shipping-form" id="shippingForm">
+          <label><span>COUNTRY</span><select id="shippingCountry"><option value="PL">POLAND</option><option value="DK">DENMARK</option></select></label>
+          <label><span>CITY</span><input id="shippingCity" required placeholder="WARSAW" autocomplete="address-level2" /></label>
+          <label><span>POSTAL CODE</span><input id="shippingPostal" required placeholder="00-001" autocomplete="postal-code" /></label>
+          <button type="submit">CALCULATE DELIVERY</button>
+        </form>
+        <p class="form-message" id="shippingMessage" role="status"></p>
       </section>
 
-      <section class="details-grid reveal" data-reveal>
-        <article><span>01</span><h2>HEAVYWEIGHT</h2><p>Dense 420 GSM fabric with a structured feel and oversized silhouette.</p></article>
-        <article><span>02</span><h2>DELIVERY</h2><p>Choose courier or InPost Parcel Locker directly inside your bag before checkout.</p></article>
-        <article><span>03</span><h2>PAYMENT</h2><p>Secure Stripe-hosted checkout. Payment confirmation is sent to your email.</p></article>
+      <section class="checkout-step" id="shippingOptionsStep" hidden>
+        <div class="step-heading"><span>02</span><h3>DELIVERY METHOD</h3></div>
+        <div class="shipping-quotes" id="shippingQuotes"></div>
       </section>
-    </main>
 
-    <footer class="site-footer reveal" data-reveal>
-      <span>DELUSIONAL CREW</span>
-      <div>
-        <a href="https://www.instagram.com/delusional_crew/" target="_blank" rel="noreferrer">INSTAGRAM</a>
-        <a href="https://www.tiktok.com/@delusional.crew?lang=pl-PL" target="_blank" rel="noreferrer">TIKTOK</a>
-        <a href="./admin.html">STAFF</a>
-      </div>
-      <small>© 2026 DELUSIONAL CREW</small>
-    </footer>
+      <section class="checkout-step pickup-step" id="pickupPicker" hidden>
+        <div class="step-heading"><span>03</span><h3>SELECT PARCEL LOCKER</h3></div>
+        <strong class="pickup-selected" id="pickupSelected">NOT SELECTED</strong>
+        <div class="pickup-map" id="pickupMap"></div>
+        <div class="pickup-list" id="pickupList"></div>
+      </section>
 
-    <div class="cart-backdrop" id="cartBackdrop" hidden></div>
-    <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
-      <header class="cart-header">
-        <div><span>YOUR BAG</span><strong id="cartHeaderCount">0 ITEM</strong></div>
-        <button id="closeCart" type="button" aria-label="Close bag">×</button>
-      </header>
+      <section class="cart-summary">
+        <div><span>SUBTOTAL</span><strong id="cartSubtotal">220 PLN</strong></div>
+        <div><span>DELIVERY</span><strong id="shippingTotal">—</strong></div>
+        <div class="cart-total"><span>TOTAL</span><strong id="cartTotal">220 PLN</strong></div>
+        <button class="checkout-button" id="checkoutButton" type="button" disabled>CONTINUE TO STRIPE</button>
+        <p class="form-message" id="checkoutMessage" role="status"></p>
+        <small>SECURE CHECKOUT POWERED BY STRIPE.</small>
+      </section>
+    </div>
+  </aside>
 
-      <div class="cart-empty" id="cartEmpty">
-        <p>YOUR BAG IS EMPTY.</p>
-        <button class="text-button" id="continueShopping" type="button">BACK TO PRODUCT</button>
-      </div>
-
-      <div class="cart-content" id="cartContent" hidden>
-        <section class="cart-line">
-          <img src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-front.jpg?v=2" alt="Delusional Classic Zip Up" />
-          <div>
-            <h2>CLASSIC ZIP UP</h2>
-            <p>SIZE <span id="cartSize">—</span></p>
-            <div class="cart-quantity">
-              <button id="cartQtyDown" type="button">−</button>
-              <span id="cartQty">1</span>
-              <button id="cartQtyUp" type="button">+</button>
-            </div>
-          </div>
-          <strong id="lineTotal">220 PLN</strong>
-        </section>
-
-        <section class="checkout-step">
-          <div class="step-heading"><span>01</span><h3>DELIVERY DETAILS</h3></div>
-          <form class="shipping-form" id="shippingForm">
-            <label><span>COUNTRY</span><select id="shippingCountry"><option value="PL">POLAND</option><option value="DK">DENMARK</option></select></label>
-            <label><span>CITY</span><input id="shippingCity" required placeholder="WARSAW" autocomplete="address-level2" /></label>
-            <label><span>POSTAL CODE</span><input id="shippingPostal" required placeholder="00-001" autocomplete="postal-code" /></label>
-            <button type="submit">CALCULATE DELIVERY</button>
-          </form>
-          <p class="form-message" id="shippingMessage" role="status"></p>
-        </section>
-
-        <section class="checkout-step" id="shippingOptionsStep" hidden>
-          <div class="step-heading"><span>02</span><h3>DELIVERY METHOD</h3></div>
-          <div class="shipping-quotes" id="shippingQuotes"></div>
-        </section>
-
-        <section class="checkout-step pickup-step" id="pickupPicker" hidden>
-          <div class="step-heading"><span>03</span><h3>SELECT PARCEL LOCKER</h3></div>
-          <strong class="pickup-selected" id="pickupSelected">NOT SELECTED</strong>
-          <div class="pickup-map" id="pickupMap"></div>
-          <div class="pickup-list" id="pickupList"></div>
-        </section>
-
-        <section class="cart-summary">
-          <div><span>SUBTOTAL</span><strong id="cartSubtotal">220 PLN</strong></div>
-          <div><span>DELIVERY</span><strong id="shippingTotal">—</strong></div>
-          <div class="cart-total"><span>TOTAL</span><strong id="cartTotal">220 PLN</strong></div>
-          <button class="checkout-button" id="checkoutButton" type="button" disabled>CONTINUE TO STRIPE</button>
-          <p class="form-message" id="checkoutMessage" role="status"></p>
-          <small>SECURE CHECKOUT POWERED BY STRIPE.</small>
-        </section>
-      </div>
-    </aside>
-
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./src/main.js"></script>
-  </body>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
 </html>
