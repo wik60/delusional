@@ -1,4 +1,4 @@
-import "./storefront.css";
+import "./minimal-home.css";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { PRODUCT } from "./config.js";
