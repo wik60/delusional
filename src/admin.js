@@ -66,7 +66,7 @@ async function loadProducts() {
   els.productsMessage.textContent = "ŁADOWANIE…";
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, slug, name, description, price, compare_at_price, currency, active, size_guide, image_url, front_image_url, back_image_url, product_variants(id, size, stock, reserved_stock, active)")
+    .select("id, slug, name, description, price, compare_at_price, currency, active, size_guide, gallery_images, image_url, front_image_url, back_image_url, product_variants(id, size, stock, reserved_stock, active)")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -172,62 +172,37 @@ async function deleteOrder(order, button) {
   els.ordersMessage.textContent = `ZAMÓWIENIE ${order.order_number} ZOSTAŁO USUNIĘTE.`;
 }
 
-function imageUrl(product, side) {
-  const classic = product.slug === "delusional-classic-zip-up";
-
-  if (side === "front") {
-    if (product.front_image_url !== null && product.front_image_url !== undefined) return product.front_image_url;
-    if (product.image_url !== null && product.image_url !== undefined) return product.image_url;
-    return classic ? "./images/classic-zip-front.jpg" : "";
+function productGalleryImages(product) {
+  if (Array.isArray(product.gallery_images)) {
+    return product.gallery_images.filter((url) => typeof url === "string" && url.trim());
   }
 
-  if (product.back_image_url !== null && product.back_image_url !== undefined) return product.back_image_url;
-  return classic ? "./images/classic-zip-back.jpg" : "";
+  const legacy = [product.front_image_url || product.image_url, product.back_image_url]
+    .filter((url) => typeof url === "string" && url.trim());
+  return [...new Set(legacy)];
 }
 
-function productImageEditor(product, side, label) {
+function productImageEditor(product, url, index) {
   const editor = document.createElement("div");
   editor.className = "product-image-editor";
 
   const heading = document.createElement("strong");
-  heading.textContent = label;
+  heading.textContent = `ZDJĘCIE ${index + 1}`;
 
   const previewWrap = document.createElement("div");
   previewWrap.className = "product-image-preview";
 
   const preview = document.createElement("img");
-  const currentUrl = imageUrl(product, side);
-  preview.alt = `${product.name} — ${label.toLowerCase()}`;
-  if (currentUrl) preview.src = currentUrl;
-  else preview.hidden = true;
-
-  const empty = document.createElement("div");
-  empty.className = "product-image-empty";
-  empty.textContent = "BRAK ZDJĘCIA";
-  empty.hidden = Boolean(currentUrl);
+  preview.src = url;
+  preview.alt = `${product.name} — zdjęcie ${index + 1}`;
 
   const deleteButton = makeAdminButton("×", "image-delete-button");
-  deleteButton.setAttribute("aria-label", `Usuń zdjęcie: ${label.toLowerCase()}`);
+  deleteButton.setAttribute("aria-label", `Usuń zdjęcie ${index + 1}`);
   deleteButton.title = "Usuń zdjęcie";
-  deleteButton.hidden = !currentUrl;
-  deleteButton.addEventListener("click", () => deleteProductImage(product, side, deleteButton));
+  deleteButton.addEventListener("click", () => deleteProductImage(product, index, url, deleteButton));
 
-  previewWrap.append(preview, empty, deleteButton);
-
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "image/jpeg,image/png,image/webp";
-  input.hidden = true;
-
-  const button = makeAdminButton("WYBIERZ I WGRAJ", "image-upload-button");
-  button.addEventListener("click", () => input.click());
-  input.addEventListener("change", async () => {
-    const [file] = input.files || [];
-    if (file) await uploadProductImage(product, side, file, button);
-    input.value = "";
-  });
-
-  editor.append(heading, previewWrap, input, button);
+  previewWrap.append(preview, deleteButton);
+  editor.append(heading, previewWrap);
   return editor;
 }
 
@@ -428,13 +403,39 @@ function renderProductEditor(product = null) {
     imagesTitle.textContent = "ZDJĘCIA PRODUKTU";
     const imageGrid = document.createElement("div");
     imageGrid.className = "product-images-admin";
-    imageGrid.append(productImageEditor(draft, "front", "PRZÓD"), productImageEditor(draft, "back", "TYŁ"));
-    images.append(imagesTitle, imageGrid);
+    const gallery = productGalleryImages(draft);
+    for (const [index, url] of gallery.entries()) {
+      imageGrid.append(productImageEditor(draft, url, index));
+    }
+
+    const addImageInput = document.createElement("input");
+    addImageInput.type = "file";
+    addImageInput.accept = "image/jpeg,image/png,image/webp";
+    addImageInput.hidden = true;
+
+    const addImage = makeAdminButton("+ DODAJ ZDJĘCIE", "image-upload-button add-product-image-button");
+    addImage.disabled = gallery.length >= 20;
+    if (gallery.length >= 20) addImage.title = "Maksymalnie 20 zdjęć produktu";
+    addImage.addEventListener("click", () => addImageInput.click());
+    addImageInput.addEventListener("change", async () => {
+      const [file] = addImageInput.files || [];
+      if (file) await uploadProductImage(draft, file, addImage);
+      addImageInput.value = "";
+    });
+
+    if (!gallery.length) {
+      const empty = document.createElement("p");
+      empty.className = "product-images-empty";
+      empty.textContent = "BRAK ZDJĘĆ — DODAJ PIERWSZE ZDJĘCIE.";
+      imageGrid.append(empty);
+    }
+
+    images.append(imagesTitle, imageGrid, addImageInput, addImage);
     form.append(header, fields, variantsSection, guideSection, images);
   } else {
     const hint = document.createElement("p");
     hint.className = "product-create-hint";
-    hint.textContent = "Po utworzeniu produktu pojawi się opcja dodania zdjęć przodu i tyłu.";
+    hint.textContent = "Po utworzeniu produktu pojawi się opcja dodawania zdjęć.";
     form.append(header, fields, variantsSection, guideSection, hint);
   }
 
@@ -490,20 +491,21 @@ function renderProductEditor(product = null) {
   return card;
 }
 
-async function deleteProductImage(product, side, button) {
-  const sideLabel = side === "front" ? "przodu" : "tyłu";
+async function deleteProductImage(product, index, url, button) {
   const confirmed = window.confirm(
-    `Czy na pewno chcesz usunąć zdjęcie ${sideLabel} produktu „${product.name}”? Tej operacji nie można cofnąć.`,
+    `Czy na pewno chcesz usunąć zdjęcie ${index + 1} produktu „${product.name}”? Tej operacji nie można cofnąć.`,
   );
   if (!confirmed) return;
 
   button.disabled = true;
   els.productsMessage.textContent = "";
 
-  const column = side === "front" ? "front_image_url" : "back_image_url";
+  const current = productGalleryImages(product);
+  const next = current.filter((_, imageIndex) => imageIndex !== index);
+
   const { error: updateError } = await supabase
     .from("products")
-    .update({ [column]: "" })
+    .update({ gallery_images: next })
     .eq("id", product.id);
 
   if (updateError) {
@@ -513,72 +515,82 @@ async function deleteProductImage(product, side, button) {
     return;
   }
 
-  const { data: imageFiles, error: listError } = await supabase.storage
-    .from("product-images")
-    .list(product.id, { limit: 100 });
+  const fileName = (() => {
+    try {
+      return decodeURIComponent(new URL(url).pathname.split("/").pop() || "");
+    } catch {
+      return "";
+    }
+  })();
 
-  if (!listError && imageFiles?.length) {
-    const paths = imageFiles
-      .filter((file) => file.name.startsWith(`${side}-`))
-      .map((file) => `${product.id}/${file.name}`);
+  if (fileName) {
+    const { data: imageFiles, error: listError } = await supabase.storage
+      .from("product-images")
+      .list(product.id, { limit: 100 });
 
-    if (paths.length) {
+    if (!listError && imageFiles?.some((file) => file.name === fileName)) {
       const { error: removeError } = await supabase.storage
         .from("product-images")
-        .remove(paths);
+        .remove([`${product.id}/${fileName}`]);
       if (removeError) console.error("product image cleanup", removeError);
+    } else if (listError) {
+      console.error("product image listing", listError);
     }
-  } else if (listError) {
-    console.error("product image listing", listError);
   }
 
-  els.productsMessage.textContent =
-    `${side === "front" ? "ZDJĘCIE PRZODU" : "ZDJĘCIE TYŁU"} ZOSTAŁO USUNIĘTE.`;
+  els.productsMessage.textContent = "ZDJĘCIE ZOSTAŁO USUNIĘTE.";
   await loadProducts();
 }
 
-async function uploadProductImage(product, side, file, button) {
+async function uploadProductImage(product, file, button) {
   const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
   if (!allowedTypes.includes(file.type) || file.size > 8 * 1024 * 1024) {
     els.productsMessage.textContent = "WYBIERZ PLIK JPG, PNG LUB WEBP DO 8 MB.";
     return;
   }
 
+  const current = productGalleryImages(product);
+  if (current.length >= 20) {
+    els.productsMessage.textContent = "PRODUKT MOŻE MIEĆ MAKSYMALNIE 20 ZDJĘĆ.";
+    return;
+  }
+
   button.disabled = true;
-  button.textContent = "WGRYWANIE…";
+  button.textContent = "DODAWANIE…";
   els.productsMessage.textContent = "";
 
   const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-  const path = `${product.id}/${side}-${Date.now()}.${extension}`;
+  const path = `${product.id}/gallery-${Date.now()}.${extension}`;
   const { error: uploadError } = await supabase.storage
     .from("product-images")
     .upload(path, file, { cacheControl: "31536000", contentType: file.type, upsert: false });
 
   if (uploadError) {
     console.error(uploadError);
-    els.productsMessage.textContent = "NIE UDAŁO SIĘ WGRAĆ ZDJĘCIA.";
+    els.productsMessage.textContent = "NIE UDAŁO SIĘ DODAĆ ZDJĘCIA.";
     button.disabled = false;
-    button.textContent = "WYBIERZ I WGRAJ";
+    button.textContent = "+ DODAJ ZDJĘCIE";
     return;
   }
 
   const { data: publicUrl } = supabase.storage.from("product-images").getPublicUrl(path);
-  const column = side === "front" ? "front_image_url" : "back_image_url";
+  const next = [...current, publicUrl.publicUrl];
+
   const { error: updateError } = await supabase
     .from("products")
-    .update({ [column]: publicUrl.publicUrl })
+    .update({ gallery_images: next })
     .eq("id", product.id);
 
   if (updateError) {
     console.error(updateError);
     await supabase.storage.from("product-images").remove([path]);
-    els.productsMessage.textContent = "PLIK WGRAŁ SIĘ, ALE NIE UDAŁO SIĘ PRZYPISAĆ GO DO PRODUKTU.";
+    els.productsMessage.textContent = "PLIK WGRAŁ SIĘ, ALE NIE UDAŁO SIĘ DODAĆ GO DO PRODUKTU.";
     button.disabled = false;
-    button.textContent = "WYBIERZ I WGRAJ";
+    button.textContent = "+ DODAJ ZDJĘCIE";
     return;
   }
 
-  els.productsMessage.textContent = `${side === "front" ? "ZDJĘCIE PRZODU" : "ZDJĘCIE TYŁU"} ZOSTAŁO ZMIENIONE.`;
+  els.productsMessage.textContent = "NOWE ZDJĘCIE ZOSTAŁO DODANE.";
   await loadProducts();
 }
 
