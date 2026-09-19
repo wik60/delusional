@@ -17,8 +17,7 @@ Deno.serve(async (request: Request) => {
 
   let event: Stripe.Event;
   try {
-    const body = await request.text();
-    event = await stripeClient.webhooks.constructEventAsync(body, signature, webhookSecret);
+    event = await stripeClient.webhooks.constructEventAsync(await request.text(), signature, webhookSecret);
   } catch (error) {
     console.error("Invalid webhook signature", error instanceof Error ? error.message : error);
     return new Response("Invalid signature", { status: 400 });
@@ -28,27 +27,24 @@ Deno.serve(async (request: Request) => {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.order_id;
     if (orderId) {
-      const address = session.shipping_details?.address;
       const supabaseAdmin = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         { auth: { persistSession: false } },
       );
 
-      const { error } = await supabaseAdmin.from("orders").update({
-        customer_email: session.customer_details?.email || session.customer_email,
-        customer_name: session.shipping_details?.name || session.customer_details?.name,
-        shipping_address_line1: address?.line1,
-        shipping_address_line2: address?.line2,
-        shipping_postal_code: address?.postal_code,
-        shipping_city: address?.city,
-        shipping_country: address?.country,
+      const update: Record<string, unknown> = {
         total_amount: (session.amount_total || 0) / 100,
         payment_status: session.payment_status === "paid" ? "paid" : "pending",
         fulfillment_status: session.payment_status === "paid" ? "paid" : "pending",
         stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
-      }).eq("id", orderId);
+      };
+      if (session.customer_details?.email || session.customer_email) {
+        update.customer_email = session.customer_details?.email || session.customer_email;
+      }
+      if (session.customer_details?.phone) update.customer_phone = session.customer_details.phone;
 
+      const { error } = await supabaseAdmin.from("orders").update(update).eq("id", orderId);
       if (error) {
         console.error("Order update failed", error.message);
         return new Response("Database update failed", { status: 500 });
