@@ -1,5 +1,7 @@
 import "./styles.css";
 import "./product.css";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import { PRODUCT } from "./config.js";
 import { supabase } from "./supabase.js";
 
@@ -14,17 +16,19 @@ const els = Object.fromEntries([
   "sizeGuideToggle", "sizeGuide", "productQtyDown", "productQtyUp", "productQty",
   "productBagCount", "productAddButton", "productCheckout", "productShippingForm",
   "productCountry", "productCity", "productPostal", "productShippingMessage",
-  "productShippingQuotes", "startPaymentButton", "paymentMessage", "stripeWidget",
-  "expressCheckoutElement", "contactDetailsElement", "shippingAddressElement",
-  "paymentElement", "confirmPaymentButton",
+  "productShippingQuotes", "startPaymentButton", "paymentMessage", "productPickupPicker",
+  "productPickupSelected", "productPickupList", "productPickupMap",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 const sizeButtons = [...document.querySelectorAll("[data-product-size]")];
 let selectedSize = "";
 let quantity = 1;
 let quotes = [];
+let parcelLockers = [];
 let selectedShipping = null;
-let checkout = null;
+let selectedPickupPoint = null;
+let pickupMap = null;
+let pickupMarkers = null;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -43,6 +47,82 @@ function requireSize() {
   setTimeout(() => document.querySelector("#productSizeOptions").classList.remove("attention"), 600);
   return false;
 }
+
+function paymentReady() {
+  return Boolean(selectedShipping && (selectedShipping.type !== "parcel_locker" || selectedPickupPoint));
+}
+
+function updatePaymentButton() {
+  els.startPaymentButton.disabled = !paymentReady();
+}
+
+function initPickupMap() {
+  if (pickupMap) return;
+  pickupMap = L.map(els.productPickupMap, { scrollWheelZoom: false }).setView([52.2297, 21.0122], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "© OpenStreetMap",
+  }).addTo(pickupMap);
+  pickupMarkers = L.layerGroup().addTo(pickupMap);
+}
+
+function choosePickupPoint(point) {
+  selectedPickupPoint = point;
+  els.productPickupSelected.textContent = `${point.code} · ${point.address}`;
+  renderPickupPoints();
+  updatePaymentButton();
+  showMessage(els.productShippingMessage, `WYBRANO PACZKOMAT ${point.code}.`);
+}
+
+function renderPickupPoints() {
+  els.productPickupList.replaceChildren();
+  for (const point of parcelLockers) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "pickup-point";
+    button.classList.toggle("selected", selectedPickupPoint?.code === point.code);
+    button.innerHTML = `<strong>${escapeHtml(point.code)}</strong><span>${escapeHtml(point.address)}, ${escapeHtml(point.postalCode)} ${escapeHtml(point.city)}</span><i aria-hidden="true"></i>`;
+    button.addEventListener("click", () => choosePickupPoint(point));
+    els.productPickupList.append(button);
+  }
+
+  initPickupMap();
+  pickupMarkers.clearLayers();
+  const bounds = [];
+  for (const point of parcelLockers) {
+    const marker = L.circleMarker([point.latitude, point.longitude], {
+      radius: selectedPickupPoint?.code === point.code ? 9 : 7,
+      color: "#171612",
+      weight: 2,
+      fillColor: selectedPickupPoint?.code === point.code ? "#171612" : "#c2b39f",
+      fillOpacity: 1,
+    }).addTo(pickupMarkers);
+    marker.bindTooltip(`${escapeHtml(point.code)} · ${escapeHtml(point.address)}`);
+    marker.on("click", () => choosePickupPoint(point));
+    bounds.push([point.latitude, point.longitude]);
+  }
+  if (bounds.length) pickupMap.fitBounds(bounds, { padding: [22, 22], maxZoom: 13 });
+  requestAnimationFrame(() => pickupMap.invalidateSize());
+}
+
+function togglePickupPicker() {
+  const needsPickup = selectedShipping?.type === "parcel_locker";
+  els.productPickupPicker.hidden = !needsPickup;
+  if (!needsPickup) {
+    selectedPickupPoint = null;
+    els.productPickupSelected.textContent = "NIE WYBRANO";
+  } else if (parcelLockers.length) {
+    renderPickupPoints();
+    setTimeout(() => pickupMap?.invalidateSize(), 50);
+  } else {
+    els.productPickupList.innerHTML = "<p class=\"checkout-message\">NIE ZNALEZIONO PACZKOMATÓW. WPISZ PONOWNIE MIASTO I OBLICZ DOSTAWĘ.</p>";
+  }
+  updatePaymentButton();
+}
+
+document.querySelector(".product-gallery-swap")?.addEventListener("click", (event) => {
+  event.currentTarget.classList.toggle("show-back");
+});
 
 els.sizeGuideToggle.addEventListener("click", () => {
   const willOpen = els.sizeGuide.hidden;
@@ -89,9 +169,12 @@ function renderQuotes() {
       <i aria-hidden="true"></i>`;
     button.addEventListener("click", () => {
       selectedShipping = quote;
+      selectedPickupPoint = null;
       renderQuotes();
-      els.startPaymentButton.disabled = false;
-      showMessage(els.productShippingMessage, `${quote.carrier.toUpperCase()} — WYBRANO.`);
+      togglePickupPicker();
+      showMessage(els.productShippingMessage, quote.type === "parcel_locker"
+        ? "WYBIERZ PACZKOMAT NA MAPIE."
+        : `${quote.carrier.toUpperCase()} — WYBRANO.`);
     });
     els.productShippingQuotes.append(button);
   }
@@ -102,9 +185,11 @@ els.productCountry.addEventListener("change", () => {
   els.productCity.placeholder = isPoland ? "WARSZAWA" : "KØBENHAVN";
   els.productPostal.placeholder = isPoland ? "00-001" : "1050";
   selectedShipping = null;
+  selectedPickupPoint = null;
   quotes = [];
+  parcelLockers = [];
   renderQuotes();
-  els.startPaymentButton.disabled = true;
+  togglePickupPicker();
 });
 
 els.productShippingForm.addEventListener("submit", async (event) => {
@@ -113,7 +198,8 @@ els.productShippingForm.addEventListener("submit", async (event) => {
   const submit = els.productShippingForm.querySelector("button[type=submit]");
   submit.disabled = true;
   selectedShipping = null;
-  els.startPaymentButton.disabled = true;
+  selectedPickupPoint = null;
+  updatePaymentButton();
   showMessage(els.productShippingMessage, "OBLICZANIE…");
   try {
     const { data, error } = await supabase.functions.invoke("shipping-quotes", {
@@ -126,12 +212,15 @@ els.productShippingForm.addEventListener("submit", async (event) => {
     });
     if (error) throw error;
     quotes = data?.quotes || [];
+    parcelLockers = data?.parcelLockers || [];
     if (!quotes.length) throw new Error("No shipping methods");
     renderQuotes();
+    togglePickupPicker();
     showMessage(els.productShippingMessage, "WYBIERZ PRZEWOŹNIKA.");
   } catch (error) {
     console.error(error);
     quotes = [];
+    parcelLockers = [];
     renderQuotes();
     showMessage(els.productShippingMessage, "NIE UDAŁO SIĘ POBRAĆ METOD DOSTAWY.");
   } finally {
@@ -139,88 +228,39 @@ els.productShippingForm.addEventListener("submit", async (event) => {
   }
 });
 
-async function initializeStripeWidgets() {
-  if (!window.Stripe) throw new Error("Stripe.js did not load");
-  const { data, error } = await supabase.functions.invoke("create-checkout", {
-    body: {
-      productSlug: PRODUCT.slug,
-      size: selectedSize,
-      quantity,
-      shippingCountry: els.productCountry.value,
-      shippingMethodId: selectedShipping.id,
-      uiMode: "elements",
-    },
-  });
-  if (error) throw error;
-  if (!data?.clientSecret || !data?.publishableKey) throw new Error("Checkout is not configured");
-
-  els.expressCheckoutElement.replaceChildren();
-  els.contactDetailsElement.replaceChildren();
-  els.shippingAddressElement.replaceChildren();
-  els.paymentElement.replaceChildren();
-  const stripe = window.Stripe(data.publishableKey);
-  checkout = stripe.initCheckoutElementsSdk({ clientSecret: data.clientSecret });
-
-  const expressCheckoutElement = checkout.createExpressCheckoutElement();
-  expressCheckoutElement.mount("#expressCheckoutElement");
-  expressCheckoutElement.on("confirm", async () => {
-    const loadResult = await checkout.loadActions();
-    if (loadResult.type !== "success") {
-      showMessage(els.paymentMessage, "NIE UDAŁO SIĘ WCZYTAĆ PŁATNOŚCI.");
-      return;
-    }
-    const { error: confirmError } = await loadResult.actions.confirm();
-    if (confirmError) showMessage(els.paymentMessage, confirmError.message || "PŁATNOŚĆ NIE POWIODŁA SIĘ.");
-  });
-
-  checkout.createContactDetailsElement().mount("#contactDetailsElement");
-  checkout.createShippingAddressElement().mount("#shippingAddressElement");
-  checkout.createPaymentElement().mount("#paymentElement");
-  els.stripeWidget.hidden = false;
-  els.stripeWidget.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
 els.startPaymentButton.addEventListener("click", async () => {
-  if (!requireSize()) return;
-  if (!selectedShipping) {
-    showMessage(els.paymentMessage, "NAJPIERW WYBIERZ SPOSÓB DOSTAWY.");
+  if (!requireSize() || !selectedShipping) return;
+  if (selectedShipping.type === "parcel_locker" && !selectedPickupPoint) {
+    showMessage(els.paymentMessage, "WYBIERZ PACZKOMAT.");
     return;
   }
   els.startPaymentButton.disabled = true;
-  els.startPaymentButton.textContent = "URUCHAMIANIE PŁATNOŚCI…";
+  els.startPaymentButton.textContent = "PRZEKIEROWANIE DO STRIPE…";
   showMessage(els.paymentMessage, "");
   try {
-    await initializeStripeWidgets();
-    els.startPaymentButton.hidden = true;
-  } catch (error) {
-    console.error(error);
-    showMessage(els.paymentMessage, "PŁATNOŚCI SĄ JESZCZE KONFIGUROWANE. SPRÓBUJ PONOWNIE PÓŹNIEJ.");
-    els.startPaymentButton.disabled = false;
-    els.startPaymentButton.textContent = "PRZEJDŹ DO PŁATNOŚCI";
-  }
-});
-
-els.confirmPaymentButton.addEventListener("click", async () => {
-  if (!checkout) return;
-  els.confirmPaymentButton.disabled = true;
-  els.confirmPaymentButton.textContent = "PRZETWARZANIE…";
-  showMessage(els.paymentMessage, "");
-  try {
-    const loadResult = await checkout.loadActions();
-    if (loadResult.type !== "success") throw new Error("Could not load checkout actions");
-    const { error } = await loadResult.actions.confirm();
+    const { data, error } = await supabase.functions.invoke("create-checkout", {
+      body: {
+        productSlug: PRODUCT.slug,
+        size: selectedSize,
+        quantity,
+        shippingCountry: els.productCountry.value,
+        shippingMethodId: selectedShipping.id,
+        pickupPointCode: selectedPickupPoint?.code || null,
+      },
+    });
     if (error) throw error;
+    if (!data?.url) throw new Error("Missing checkout URL");
+    location.assign(data.url);
   } catch (error) {
     console.error(error);
-    showMessage(els.paymentMessage, error?.message || "PŁATNOŚĆ NIE POWIODŁA SIĘ.");
-    els.confirmPaymentButton.disabled = false;
-    els.confirmPaymentButton.textContent = "ZAPŁAĆ BEZPIECZNIE";
+    showMessage(els.paymentMessage, "NIE UDAŁO SIĘ OTWORZYĆ STRIPE. SPRÓBUJ PONOWNIE.");
+    els.startPaymentButton.disabled = false;
+    els.startPaymentButton.textContent = "PRZEJDŹ DO STRIPE";
   }
 });
 
-const paymentState = new URLSearchParams(location.search).get("payment");
-if (paymentState === "success") {
-  showMessage(els.paymentMessage, "PŁATNOŚĆ PRZYJĘTA — DZIĘKUJEMY.");
+if (new URLSearchParams(location.search).get("payment") === "cancelled") {
+  showMessage(els.paymentMessage, "PŁATNOŚĆ ANULOWANA — MOŻESZ SPRÓBOWAĆ PONOWNIE.");
   els.productCheckout.scrollIntoView({ block: "center" });
   history.replaceState({}, "", location.pathname);
 }

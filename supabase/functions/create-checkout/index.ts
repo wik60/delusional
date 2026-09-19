@@ -9,13 +9,36 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 }
 
+async function verifyParcelLocker(code: string) {
+  if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return null;
+  try {
+    const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points/${encodeURIComponent(code)}`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const point = await response.json();
+    const types = Array.isArray(point.type) ? point.type : [];
+    if (point.status !== "Operating" || !types.includes("parcel_locker")) return null;
+    return {
+      code: String(point.name).slice(0, 32),
+      name: String(point.display_name || `InPost Paczkomat ${point.name}`).slice(0, 120),
+      address: `${String(point.address?.line1 || "")}, ${String(point.address?.line2 || "")}`
+        .replace(/^, |, $/g, "")
+        .slice(0, 220),
+    };
+  } catch (error) {
+    console.error("verify-parcel-locker", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
     const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-    const stripePublishableKey = Deno.env.get("STRIPE_PUBLISHABLE_KEY");
     const storefrontUrl = Deno.env.get("STOREFRONT_URL");
     if (!stripeSecret || !storefrontUrl) return json({ error: "Checkout is not configured" }, 503);
 
@@ -24,9 +47,8 @@ Deno.serve(async (request: Request) => {
     const size = String(payload.size || "").toUpperCase();
     const shippingCountry = String(payload.shippingCountry || "").toUpperCase();
     const shippingMethodId = String(payload.shippingMethodId || "");
-    const elementsMode = payload.uiMode === "elements";
+    const pickupPointCode = String(payload.pickupPointCode || "").trim().toUpperCase();
     const quantity = Number(payload.quantity);
-    if (elementsMode && !stripePublishableKey) return json({ error: "Checkout is not configured" }, 503);
     if (!productSlug || !size || !shippingMethodId || !["PL", "DK"].includes(shippingCountry) || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
       return json({ error: "Invalid cart" }, 400);
     }
@@ -52,12 +74,18 @@ Deno.serve(async (request: Request) => {
     const subtotal = Number(product.price) * quantity;
     const { data: shippingMethod, error: shippingError } = await supabaseAdmin
       .from("shipping_methods")
-      .select("id, carrier, service_name, amount, free_from, currency")
+      .select("id, carrier, service_name, amount, free_from, currency, delivery_type")
       .eq("id", shippingMethodId)
       .eq("country_code", shippingCountry)
       .eq("active", true)
       .single();
     if (shippingError || !shippingMethod) return json({ error: "Shipping unavailable" }, 409);
+    const pickupPoint = shippingMethod.delivery_type === "parcel_locker"
+      ? await verifyParcelLocker(pickupPointCode)
+      : null;
+    if (shippingMethod.delivery_type === "parcel_locker" && !pickupPoint) {
+      return json({ error: "Invalid pickup point" }, 400);
+    }
     const shippingAmount = shippingMethod.free_from && subtotal >= Number(shippingMethod.free_from)
       ? 0
       : Number(shippingMethod.amount);
@@ -72,6 +100,9 @@ Deno.serve(async (request: Request) => {
         shipping_method_id: shippingMethod.id,
         shipping_carrier: shippingMethod.carrier,
         shipping_service: shippingMethod.service_name,
+        pickup_point_code: pickupPoint?.code || null,
+        pickup_point_name: pickupPoint?.name || null,
+        pickup_point_address: pickupPoint?.address || null,
       })
       .select("id, order_number")
       .single();
@@ -111,7 +142,10 @@ Deno.serve(async (request: Request) => {
         price_data: {
           currency: String(product.currency).toLowerCase(),
           unit_amount: Math.round(shippingAmount * 100),
-          product_data: { name: `${shippingMethod.carrier} — ${shippingMethod.service_name}` },
+          product_data: {
+            name: `${shippingMethod.carrier} — ${shippingMethod.service_name}`,
+            description: pickupPoint ? `${pickupPoint.code} · ${pickupPoint.address}` : undefined,
+          },
         },
       });
     }
@@ -120,24 +154,26 @@ Deno.serve(async (request: Request) => {
       mode: "payment",
       integration_identifier: "delusional_qmwrpzka",
       customer_creation: "always",
-      // The embedded shipping Address Element already collects the delivery
-      // address. Let Stripe request billing details only when the selected
-      // payment method actually needs them.
       billing_address_collection: "auto",
       shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
       line_items: lineItems,
-      metadata: { order_id: order.id, order_number: order.order_number, shipping_method_id: shippingMethod.id },
+      locale: "pl",
+      custom_text: {
+        submit: { message: "Po płatności otrzymasz potwierdzenie zamówienia na podany adres e-mail." },
+      },
+      metadata: {
+        order_id: order.id,
+        order_number: order.order_number,
+        shipping_method_id: shippingMethod.id,
+        pickup_point_code: pickupPoint?.code || "",
+      },
     };
 
     const normalizedStorefrontUrl = storefrontUrl.endsWith("/") ? storefrontUrl : `${storefrontUrl}/`;
-    const session = await stripeClient.checkout.sessions.create(elementsMode ? {
+    const session = await stripeClient.checkout.sessions.create({
       ...baseSession,
-      ui_mode: "elements",
-      return_url: `${normalizedStorefrontUrl}product.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-    } : {
-      ...baseSession,
-      success_url: `${normalizedStorefrontUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${normalizedStorefrontUrl}?payment=cancelled`,
+      success_url: `${normalizedStorefrontUrl}thank-you.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${normalizedStorefrontUrl}product.html?payment=cancelled`,
     });
 
     const { error: updateError } = await supabaseAdmin
@@ -146,13 +182,6 @@ Deno.serve(async (request: Request) => {
       .eq("id", order.id);
     if (updateError) throw updateError;
 
-    if (elementsMode) {
-      return json({
-        clientSecret: session.client_secret,
-        publishableKey: stripePublishableKey,
-        orderNumber: order.order_number,
-      });
-    }
     return json({ url: session.url });
   } catch (error) {
     console.error("create-checkout", error instanceof Error ? error.message : error);

@@ -8,6 +8,55 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers });
 }
 
+type ParcelLocker = {
+  code: string;
+  name: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  latitude: number;
+  longitude: number;
+};
+
+async function getParcelLockers(city: string): Promise<ParcelLocker[]> {
+  const params = new URLSearchParams({
+    city,
+    type: "parcel_locker",
+    status: "Operating",
+    per_page: "24",
+  });
+
+  try {
+    const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points?${params}`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    return (payload.items || []).flatMap((point: Record<string, unknown>) => {
+      const address = point.address as Record<string, unknown> | undefined;
+      const details = point.address_details as Record<string, unknown> | undefined;
+      const location = point.location as Record<string, unknown> | undefined;
+      const code = String(point.name || "").slice(0, 32);
+      const latitude = Number(location?.latitude);
+      const longitude = Number(location?.longitude);
+      if (!code || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+      return [{
+        code,
+        name: String(point.display_name || `InPost Paczkomat ${code}`).slice(0, 120),
+        address: String(address?.line1 || "").slice(0, 160),
+        city: String(details?.city || city).slice(0, 80),
+        postalCode: String(details?.post_code || "").slice(0, 16),
+        latitude,
+        longitude,
+      }];
+    });
+  } catch (error) {
+    console.error("parcel-lockers", error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -49,7 +98,8 @@ Deno.serve(async (request: Request) => {
       type: method.delivery_type,
     }));
 
-    return json({ destination: { country, postalCode, city }, quotes });
+    const parcelLockers = country === "PL" ? await getParcelLockers(city) : [];
+    return json({ destination: { country, postalCode, city }, quotes, parcelLockers });
   } catch (error) {
     console.error("shipping-quotes", error instanceof Error ? error.message : error);
     return json({ error: "Unable to calculate shipping" }, 500);

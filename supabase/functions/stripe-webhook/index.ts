@@ -24,7 +24,7 @@ Deno.serve(async (request: Request) => {
     return new Response("Invalid signature", { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.order_id;
     if (orderId) {
@@ -53,6 +53,21 @@ Deno.serve(async (request: Request) => {
         console.error("Order update failed", error.message);
         return new Response("Database update failed", { status: 500 });
       }
+    }
+  } else if (event.type === "checkout.session.async_payment_failed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const orderId = session.metadata?.order_id;
+    if (orderId) {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } },
+      );
+      const { error } = await supabaseAdmin.from("orders").update({
+        payment_status: "failed",
+        fulfillment_status: "pending",
+      }).eq("id", orderId);
+      if (error) return new Response("Database update failed", { status: 500 });
     }
   }
 

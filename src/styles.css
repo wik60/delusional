@@ -235,6 +235,22 @@ img, video { max-width: 100%; display: block; }
 .shipping-quote strong { grid-column: 2; grid-row: 1 / 3; font-size: .72rem; }
 .shipping-quote i { grid-column: 3; grid-row: 1 / 3; width: 14px; height: 14px; border: 1px solid var(--ink); border-radius: 50%; }
 .shipping-quote.selected i { background: var(--ink); box-shadow: inset 0 0 0 3px var(--cream); }
+.pickup-picker { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--ink); }
+.pickup-picker-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: .8rem; }
+.pickup-picker-heading h3 { margin: .25rem 0 0; font-size: 1.25rem; letter-spacing: -.035em; }
+.pickup-picker-heading > strong { max-width: 48%; text-align: right; font-size: .58rem; line-height: 1.45; letter-spacing: .06em; }
+.pickup-list { max-height: 300px; display: grid; gap: .45rem; overflow: auto; padding-right: .25rem; }
+.pickup-point {
+  width: 100%; min-height: 58px; padding: .7rem .8rem;
+  display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem;
+  border: 1px solid rgba(23,22,18,.35); background: rgba(237,233,228,.32);
+  text-align: left; cursor: pointer;
+}
+.pickup-point:hover, .pickup-point.selected { background: var(--cream); border-color: var(--ink); }
+.pickup-point strong { font-size: .67rem; }
+.pickup-point span { grid-column: 1; color: var(--muted); font-size: .57rem; line-height: 1.35; }
+.pickup-point i { grid-column: 2; grid-row: 1 / 3; align-self: center; width: 14px; height: 14px; border: 1px solid var(--ink); border-radius: 50%; }
+.pickup-point.selected i { background: var(--ink); box-shadow: inset 0 0 0 3px var(--cream); }
 .map-panel { position: relative; min-height: 620px; border-left: 1px solid var(--ink); }
 .shipping-map { width: 100%; height: 100%; min-height: 620px; background: #d8d0c4; filter: grayscale(1) sepia(.2); }
 .map-caption {
@@ -300,6 +316,25 @@ footer small { opacity: .55; }
 .form-message { min-height: 1rem; color: var(--muted); font-size: .6rem; font-weight: 700; letter-spacing: .08em; }
 .toast { position: fixed; left: 50%; bottom: 1.4rem; z-index: 1000; padding: .9rem 1.2rem; background: var(--ink); color: var(--cream); border: 1px solid var(--cream); font-size: .62rem; font-weight: 700; letter-spacing: .1em; opacity: 0; transform: translate(-50%, 100px); transition: .25s; }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* Order confirmation */
+.thank-you-body { min-height: 100vh; background: var(--cream); }
+.thank-you-header { min-height: 70px; padding: 0 clamp(1rem, 4vw, 4rem); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
+.thank-you-header > a:last-child { font-size: .62rem; font-weight: 700; letter-spacing: .1em; }
+.thank-you-main { min-height: calc(100vh - 70px); padding: clamp(2rem, 6vw, 6rem) 1rem; display: grid; place-items: center; }
+.thank-you-card { width: min(100%, 720px); padding: clamp(2rem, 6vw, 5.5rem); border: 1px solid var(--ink); background: #f7f5f2; box-shadow: 14px 14px 0 var(--sand); }
+.thank-you-index { margin: 0 0 2rem; color: var(--muted); font-size: .6rem; font-weight: 700; letter-spacing: .13em; }
+.thank-you-mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--cream); font-size: 1.4rem; }
+.thank-you-card.is-error .thank-you-mark { background: #7b2525; }
+.thank-you-card.is-pending .thank-you-mark { background: var(--sand); color: var(--ink); }
+.thank-you-card h1 { margin: 1.5rem 0 .8rem; font-size: clamp(2.7rem, 7vw, 6.2rem); line-height: .82; letter-spacing: -.065em; }
+.thank-you-lead { max-width: 530px; color: var(--muted); line-height: 1.6; }
+.thank-you-details { margin: 2.5rem 0 1.5rem; border-top: 1px solid var(--ink); }
+.thank-you-details > div { padding: .9rem 0; display: grid; grid-template-columns: 130px 1fr; gap: 1rem; border-bottom: 1px solid var(--line); }
+.thank-you-details dt { font-size: .57rem; font-weight: 700; letter-spacing: .11em; }
+.thank-you-details dd { margin: 0; font-size: .7rem; font-weight: 700; line-height: 1.5; }
+.thank-you-email { margin: 1.5rem 0; color: var(--muted); font-size: .7rem; line-height: 1.55; }
+.thank-you-card .button { width: 100%; }
 
 /* Admin */
 .admin-body { background: #0a0a0a; color: var(--white); min-height: 100vh; }

@@ -10,6 +10,9 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.checkout-status]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

@@ -7,7 +7,6 @@
     <meta name="theme-color" content="#ede9e4" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>Delusional Classic Zip Up — Delusional Crew</title>
-    <script src="https://js.stripe.com/dahlia/stripe.js"></script>
   </head>
   <body class="product-page-body">
     <header class="product-header">
@@ -28,8 +27,11 @@
 
     <main class="product-layout">
       <section class="product-gallery" aria-label="Zdjęcia produktu">
-        <figure><img src="./images/classic-zip-front.jpg" alt="Delusional Classic Zip Up — przód" /></figure>
-        <figure><img src="./images/classic-zip-back.jpg" alt="Delusional Classic Zip Up — tył" /></figure>
+        <figure class="product-gallery-swap">
+          <img class="gallery-front" src="./images/classic-zip-front.jpg" alt="Delusional Classic Zip Up — przód" />
+          <img class="gallery-back" src="./images/classic-zip-back.jpg" alt="Delusional Classic Zip Up — tył" />
+          <span>NAJEDŹ, ABY ZOBACZYĆ TYŁ</span>
+        </figure>
       </section>
 
       <section class="product-panel" aria-labelledby="productTitle">
@@ -90,25 +92,17 @@
             </form>
             <p class="checkout-message" id="productShippingMessage" role="status"></p>
             <div class="product-shipping-quotes" id="productShippingQuotes" aria-live="polite"></div>
-            <button class="start-payment-button" id="startPaymentButton" type="button" disabled>PRZEJDŹ DO PŁATNOŚCI</button>
+            <section class="pickup-picker" id="productPickupPicker" hidden aria-labelledby="productPickupTitle">
+              <div class="pickup-picker-heading">
+                <div><p class="product-kicker">PUNKT ODBIORU</p><h3 id="productPickupTitle">WYBIERZ PACZKOMAT.</h3></div>
+                <strong id="productPickupSelected">NIE WYBRANO</strong>
+              </div>
+              <div class="pickup-map" id="productPickupMap" aria-label="Mapa paczkomatów"></div>
+              <div class="pickup-list" id="productPickupList"></div>
+            </section>
+            <button class="start-payment-button" id="startPaymentButton" type="button" disabled>PRZEJDŹ DO STRIPE</button>
             <p class="checkout-message" id="paymentMessage" role="alert"></p>
-
-            <div class="stripe-widget" id="stripeWidget" hidden>
-              <h3>SZYBKA PŁATNOŚĆ</h3>
-              <div id="expressCheckoutElement"></div>
-              <div class="stripe-separator"><span>LUB ZAPŁAĆ KARTĄ</span></div>
-              <div class="stripe-field-group">
-                <span class="stripe-field-label">DANE KONTAKTOWE</span>
-                <div id="contactDetailsElement"></div>
-              </div>
-              <div class="stripe-field-group">
-                <span class="stripe-field-label">ADRES DOSTAWY</span>
-                <div id="shippingAddressElement"></div>
-              </div>
-              <div id="paymentElement"></div>
-              <button class="confirm-payment-button" id="confirmPaymentButton" type="button">ZAPŁAĆ BEZPIECZNIE</button>
-              <p class="stripe-secure">Płatność obsługuje Stripe. Dane karty nie trafiają na serwer Delusional Crew.</p>
-            </div>
+            <p class="stripe-secure">Bezpieczna płatność na stronie Stripe. Po zakupie otrzymasz potwierdzenie na podany e-mail.</p>
           </section>
         </div>
       </section>

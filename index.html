@@ -95,11 +95,18 @@
           </form>
           <p class="shipping-message" id="shippingMessage" role="status"></p>
           <div class="shipping-quotes" id="shippingQuotes" aria-live="polite"></div>
+          <section class="pickup-picker" id="pickupPicker" hidden aria-labelledby="pickupTitle">
+            <div class="pickup-picker-heading">
+              <div><p class="section-index">PUNKT ODBIORU</p><h3 id="pickupTitle">WYBIERZ PACZKOMAT.</h3></div>
+              <strong id="pickupSelected">NIE WYBRANO</strong>
+            </div>
+            <div class="pickup-list" id="pickupList"></div>
+          </section>
         </div>
 
         <div class="map-panel">
           <div id="shippingMap" class="shipping-map" aria-label="Mapa miejsca dostawy"></div>
-          <div class="map-caption"><span>DELIVERY AREA</span><strong id="mapLocation">POLAND</strong></div>
+          <div class="map-caption"><span id="mapCaptionLabel">DELIVERY AREA</span><strong id="mapLocation">POLAND</strong></div>
         </div>
       </section>
     </main>
