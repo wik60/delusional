@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Delusional Crew — BE DELUSIONAL. Poznaj Delusional Classic Zip Up." />
+    <meta name="description" content="Delusional Crew — Delusional Classic Zip Up." />
     <meta name="theme-color" content="#c2b39f" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Delusional Crew — Be Delusional</title>
+    <title>Delusional Crew — Classic Zip Up</title>
   </head>
   <body>
     <header class="site-header">
@@ -21,53 +21,51 @@
     </header>
 
     <main id="top">
-      <section class="hero" aria-labelledby="hero-title">
+      <section class="hero" aria-label="Film Delusional Crew">
         <video class="hero-video" autoplay muted loop playsinline aria-hidden="true">
-          <source src="./brand-film.webm" type="video/webm" />
+          <source src="./delusional-loop.mp4" type="video/mp4" />
         </video>
-        <div class="hero-wash" aria-hidden="true"></div>
-        <h1 id="hero-title"><span>BE</span> DELUSIONAL</h1>
-        <a class="hero-scroll" href="#products">VIEW PRODUCT <span>↓</span></a>
+        <a class="hero-scroll" href="#products" aria-label="Przejdź do produktu">↓</a>
       </section>
 
-      <section class="products" id="products" aria-labelledby="products-title">
-        <div class="section-topline">
-          <p>01 / CURRENT PRODUCT</p>
-          <h2 id="products-title">PRODUCTS</h2>
-          <p>ONE PIECE. ONE DROP.</p>
-        </div>
-
-        <article class="product">
-          <div class="product-media">
+      <section class="products" id="products" aria-label="Aktualny produkt">
+        <article class="product-card">
+          <div class="product-card-media">
             <img class="product-front" src="./images/classic-zip-front.jpg" alt="Szara bluza Delusional Classic Zip Up — przód" />
             <img class="product-back" src="./images/classic-zip-back.jpg" alt="Szara bluza Delusional Classic Zip Up — tył" loading="lazy" />
-            <span>FRONT / BACK</span>
+            <span class="sale-badge">W PROMOCJI</span>
+            <span class="media-hint">NAJEDŹ, ABY ZOBACZYĆ TYŁ</span>
           </div>
 
-          <div class="product-info">
-            <p class="product-label">AVAILABLE NOW</p>
-            <h3 id="productName">CLASSIC<br />ZIP UP</h3>
+          <div class="product-card-copy">
+            <h2 id="productName">DELUSIONAL CLASSIC ZIP UP</h2>
             <div class="price-row"><strong>220 PLN</strong><s>260 PLN</s></div>
-            <p class="product-description">Szara bluza z ciężkiej, miękkiej bawełny. Boxy cropped fit, 420 GSM i charakterystyczny print.</p>
-
-            <ul class="product-specs" aria-label="Szczegóły produktu">
-              <li><span>MATERIAL</span><strong>100% COTTON</strong></li>
-              <li><span>WEIGHT</span><strong>420 GSM</strong></li>
-              <li><span>FIT</span><strong>BOXY / CROPPED</strong></li>
-            </ul>
-
-            <fieldset class="size-picker">
-              <legend>SELECT SIZE</legend>
-              <div class="size-options" id="sizeOptions">
-                <button type="button" data-size="S">S</button>
-                <button type="button" data-size="M">M</button>
-                <button type="button" data-size="L">L</button>
-                <button type="button" data-size="XL">XL</button>
-              </div>
-            </fieldset>
-            <p class="fit-note">For a closer fit, choose one size down.</p>
-            <button class="button button-dark" id="addToCart" type="button">ADD TO BAG</button>
           </div>
+
+          <details class="product-buy">
+            <summary>WYBIERZ ROZMIAR I KUP <span aria-hidden="true">+</span></summary>
+            <div class="buy-body">
+              <p class="product-description">Szara bluza z ciężkiej, miękkiej bawełny. Boxy cropped fit, 420 GSM i charakterystyczny print.</p>
+
+              <ul class="product-specs" aria-label="Szczegóły produktu">
+                <li><span>MATERIAŁ</span><strong>100% BAWEŁNA</strong></li>
+                <li><span>GRAMATURA</span><strong>420 GSM</strong></li>
+                <li><span>KRÓJ</span><strong>BOXY / CROPPED</strong></li>
+              </ul>
+
+              <fieldset class="size-picker">
+                <legend>WYBIERZ ROZMIAR</legend>
+                <div class="size-options" id="sizeOptions">
+                  <button type="button" data-size="S">S</button>
+                  <button type="button" data-size="M">M</button>
+                  <button type="button" data-size="L">L</button>
+                  <button type="button" data-size="XL">XL</button>
+                </div>
+              </fieldset>
+              <p class="fit-note">Jeśli wolisz bardziej dopasowany krój, wybierz rozmiar mniejszy.</p>
+              <button class="button button-dark" id="addToCart" type="button">DODAJ DO KOSZYKA</button>
+            </div>
+          </details>
         </article>
       </section>
 
@@ -108,7 +106,7 @@
 
     <footer>
       <div>
-        <span>BE DELUSIONAL.</span>
+        <span>DELUSIONAL CREW</span>
         <a href="https://www.instagram.com/delusional_crew/" target="_blank" rel="noreferrer">INSTAGRAM</a>
         <a href="https://www.tiktok.com/@delusional.crew?lang=pl-PL" target="_blank" rel="noreferrer">TIKTOK</a>
         <a href="./admin.html">ADMIN</a>
