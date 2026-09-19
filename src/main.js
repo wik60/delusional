@@ -138,12 +138,12 @@ async function loadCatalog() {
   const [{ data: product, error }, { data: catalog }] = await Promise.all([
     supabase
     .from("products")
-    .select("slug, name, description, price, compare_at_price, currency, size_guide, front_image_url, back_image_url, image_url, product_variants(size, stock, reserved_stock, active)")
+    .select("slug, name, description, price, compare_at_price, currency, size_guide, gallery_images, front_image_url, back_image_url, image_url, product_variants(size, stock, reserved_stock, active)")
     .eq("slug", requestedSlug)
     .single(),
     supabase
       .from("products")
-      .select("slug, name, price, currency, image_url, front_image_url, back_image_url")
+      .select("slug, name, price, currency, gallery_images, image_url, front_image_url, back_image_url")
       .order("created_at", { ascending: true }),
   ]);
 
@@ -207,29 +207,21 @@ async function loadCatalog() {
   }
   els.sizeGuideToggle.hidden = sizeGuide.length === 0;
 
-  const front = productImage(product, "front");
-  const back = productImage(product, "back");
-  const cartImage = front || back || "./images/brand-mark.png";
+  const gallery = productGalleryImages(product);
+  els.imageStage.querySelectorAll(".product-shot").forEach((shot) => shot.remove());
 
-  if (front) {
-    els.frontImage.hidden = false;
-    els.frontImage.src = front;
-  } else {
-    els.frontImage.hidden = true;
-    els.frontImage.removeAttribute("src");
-  }
+  const shots = gallery.map((url, index) => {
+    const image = document.createElement("img");
+    image.className = `product-shot${index === 0 ? " is-active" : ""}`;
+    image.src = url;
+    image.alt = `${product.name} — image ${index + 1}`;
+    els.imageStage.insertBefore(image, els.prevImage);
+    return image;
+  });
 
-  if (back) {
-    els.backImage.hidden = false;
-    els.backImage.src = back;
-  } else {
-    els.backImage.hidden = true;
-    els.backImage.removeAttribute("src");
-  }
-
-  els.cartProductImage.src = cartImage;
-  els.frontImage.alt = `${product.name} — front`;
-  els.backImage.alt = `${product.name} — back`;
+  els.frontImage = shots[0] || null;
+  els.backImage = shots[1] || null;
+  els.cartProductImage.src = gallery[0] || "./images/brand-mark.png";
   els.cartProductImage.alt = product.name;
   setImage(0);
 
@@ -254,17 +246,24 @@ async function loadCatalog() {
   reconcileInventory();
 }
 
-function productImage(item, side) {
-  const classic = item.slug === "delusional-classic-zip-up";
-
-  if (side === "front") {
-    if (item.front_image_url !== null && item.front_image_url !== undefined) return item.front_image_url;
-    if (item.image_url !== null && item.image_url !== undefined) return item.image_url;
-    return classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png";
+function productGalleryImages(item) {
+  if (Array.isArray(item.gallery_images) && item.gallery_images.length) {
+    return item.gallery_images.filter((url) => typeof url === "string" && url.trim());
   }
 
-  if (item.back_image_url !== null && item.back_image_url !== undefined) return item.back_image_url;
-  return classic ? "./images/classic-zip-back.jpg" : "";
+  const classic = item.slug === "delusional-classic-zip-up";
+  const legacy = [
+    item.front_image_url || item.image_url || (classic ? "./images/classic-zip-front.jpg" : ""),
+    item.back_image_url || (classic ? "./images/classic-zip-back.jpg" : ""),
+  ].filter(Boolean);
+
+  return [...new Set(legacy)];
+}
+
+function productImage(item, side) {
+  const gallery = productGalleryImages(item);
+  if (side === "front") return gallery[0] || "./images/brand-mark.png";
+  return gallery[1] || gallery[0] || "./images/brand-mark.png";
 }
 
 function renderHomepageProducts(catalog) {
@@ -411,7 +410,7 @@ function setImage(index) {
 
 function animateToCart() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const source = getProductShots()[activeImageIndex] || els.frontImage;
+  const source = getProductShots()[activeImageIndex] || els.cartProductImage;
   const from = source.getBoundingClientRect();
   const to = els.cartTrigger.getBoundingClientRect();
   const clone = source.cloneNode();
