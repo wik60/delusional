@@ -2,6 +2,7 @@ import "./storefront.css";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { PRODUCT } from "./config.js";
+import { FRONT_IMAGE, BACK_IMAGE } from "./product-images.js";
 import { supabase } from "./supabase.js";
 
 const CART_KEY = "delusional-cart-v3";
@@ -23,6 +24,11 @@ const els = Object.fromEntries([
 
 const sizeButtons = [...document.querySelectorAll("[data-size]")];
 const viewButtons = [...document.querySelectorAll("[data-view]")];
+
+els.frontImage.src = FRONT_IMAGE;
+els.backImage.src = BACK_IMAGE;
+const cartImage = document.querySelector(".cart-line img");
+if (cartImage) cartImage.src = FRONT_IMAGE;
 
 let selectedSize = "";
 let quantity = 1;
