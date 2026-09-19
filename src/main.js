@@ -540,12 +540,8 @@ function bindSizeButtons() {
 
 bindSizeButtons();
 
-viewButtons.forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
 els.prevImage.addEventListener("click", () => setView(activeView === "front" ? "back" : "front"));
 els.nextImage.addEventListener("click", () => setView(activeView === "front" ? "back" : "front"));
-els.imageStage.addEventListener("mouseenter", () => setView("back"));
-els.imageStage.addEventListener("mouseleave", () => setView("front"));
-els.imageStage.addEventListener("dblclick", () => setView(activeView === "front" ? "back" : "front"));
 
 els.sizeGuideToggle.addEventListener("click", () => {
   const opening = els.sizeGuide.hidden;
