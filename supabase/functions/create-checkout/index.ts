@@ -9,7 +9,7 @@ function json(body: unknown, status = 200) { return new Response(JSON.stringify(
 async function verifyParcelLocker(code: string) {
   if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return null;
   try {
-    const response = await fetch(\`https://api-shipx-pl.easypack24.net/v1/points/\${encodeURIComponent(code)}\`, {
+    const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points/${encodeURIComponent(code)}`, {
       signal: AbortSignal.timeout(5000),
       headers: { Accept: "application/json" },
     });
@@ -19,8 +19,8 @@ async function verifyParcelLocker(code: string) {
     if (point.status !== "Operating" || !types.includes("parcel_locker")) return null;
     return {
       code: String(point.name).slice(0, 32),
-      name: String(point.display_name || \`InPost Paczkomat \${point.name}\`).slice(0, 120),
-      address: \`\${String(point.address?.line1 || "")}, \${String(point.address?.line2 || "")}\`
+      name: String(point.display_name || `InPost Paczkomat ${point.name}`).slice(0, 120),
+      address: `${String(point.address?.line1 || "")}, ${String(point.address?.line2 || "")}`
         .replace(/^, |, $/g, "")
         .slice(0, 220),
     };
@@ -147,7 +147,7 @@ Deno.serve(async (request: Request) => {
       price_data: {
         currency: String(product.currency).toLowerCase(),
         unit_amount: Math.round(Number(product.price) * 100),
-        product_data: { name: product.name, description: \`Rozmiar: \${size}\` },
+        product_data: { name: product.name, description: `Rozmiar: ${size}` },
       },
     }];
 
@@ -158,16 +158,16 @@ Deno.serve(async (request: Request) => {
           currency: String(product.currency).toLowerCase(),
           unit_amount: Math.round(shippingAmount * 100),
           product_data: {
-            name: \`\${shippingMethod.carrier} — \${shippingMethod.service_name}\`,
+            name: `${shippingMethod.carrier} — ${shippingMethod.service_name}`,
             description: pickupPoint
-              ? \`\${pickupPoint.code} · \${pickupPoint.address}\`
-              : \`\${shippingAddressLine1}, \${shippingPostalCode} \${shippingCity}\`,
+              ? `${pickupPoint.code} · ${pickupPoint.address}`
+              : `${shippingAddressLine1}, ${shippingPostalCode} ${shippingCity}`,
           },
         },
       });
     }
 
-    const normalizedStorefrontUrl = storefrontUrl.endsWith("/") ? storefrontUrl : \`\${storefrontUrl}/\`;
+    const normalizedStorefrontUrl = storefrontUrl.endsWith("/") ? storefrontUrl : `${storefrontUrl}/`;
     const session = await stripeClient.checkout.sessions.create({
       mode: "payment",
       integration_identifier: "delusional_qmwrpzka",
@@ -185,8 +185,8 @@ Deno.serve(async (request: Request) => {
         shipping_method_id: shippingMethod.id,
         pickup_point_code: pickupPoint?.code || "",
       },
-      success_url: \`\${normalizedStorefrontUrl}thank-you.html?session_id={CHECKOUT_SESSION_ID}\`,
-      cancel_url: \`\${normalizedStorefrontUrl}index.html?payment=cancelled\`,
+      success_url: `${normalizedStorefrontUrl}thank-you.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${normalizedStorefrontUrl}index.html?payment=cancelled`,
     });
 
     const { error: updateError } = await supabaseAdmin
