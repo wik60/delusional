@@ -49,6 +49,28 @@ Deno.serve(async (request: Request) => {
         console.error("Order update failed", error.message);
         return new Response("Database update failed", { status: 500 });
       }
+
+      if (session.payment_status === "paid") {
+        const fulfillmentUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/inpost-fulfillment`;
+        const fulfillmentPromise = fetch(fulfillmentUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ orderId, action: "generate" }),
+        }).then(async (response) => {
+          if (!response.ok) console.error("Automatic label fulfillment failed", await response.text());
+        }).catch((error) => console.error("Automatic label fulfillment request failed", error));
+
+        try {
+          // Keep Stripe webhook fast while the label is generated and optionally printed.
+          // @ts-ignore Supabase Edge Runtime global
+          EdgeRuntime.waitUntil(fulfillmentPromise);
+        } catch {
+          await fulfillmentPromise;
+        }
+      }
     }
   } else if (event.type === "checkout.session.async_payment_failed") {
     const session = event.data.object as Stripe.Checkout.Session;
