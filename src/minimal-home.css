@@ -40,6 +40,7 @@ main{min-height:calc(100vh - 142px)}
 .size-options{display:flex;gap:2px;margin-bottom:24px}
 .size-options button{width:48px;height:38px;border:1px solid #a9a9a5;background:transparent;cursor:pointer;font-size:11px}
 .size-options button:hover,.size-options button.active{background:#090909;color:#fff;border-color:#090909}
+.size-options button.sold-out,.size-options button:disabled{opacity:.28;text-decoration:line-through;cursor:not-allowed;background:transparent;color:#090909;border-color:#a9a9a5}
 .quantity-control{display:inline-flex;border:1px solid #aaa;height:38px;margin-bottom:8px}
 .quantity-control button,.quantity-control span{width:38px;border:0;background:transparent;display:grid;place-items:center}
 .quantity-control button{cursor:pointer}

@@ -34,6 +34,10 @@ Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  let supabaseAdmin: ReturnType<typeof createClient> | null = null;
+  let stripeClient: Stripe | null = null;
+  let createdOrderId: string | null = null;
+  let createdSessionId: string | null = null;
   try {
     const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
     const storefrontUrl = Deno.env.get("STOREFRONT_URL");
@@ -63,21 +67,26 @@ Deno.serve(async (request: Request) => {
       shippingAddressLine1.length < 3 || shippingCity.length < 2 || shippingPostalCode.length < 3
     ) return json({ error: "Invalid checkout details" }, 400);
 
-    const supabaseAdmin = createClient(
+    supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
 
+    const { error: cleanupError } = await supabaseAdmin.rpc("release_expired_stock_reservations");
+    if (cleanupError) console.error("stock-reservation-cleanup", cleanupError.message);
+
     const { data: variant, error: variantError } = await supabaseAdmin
       .from("product_variants")
-      .select("id, size, stock, active, product:products!inner(id, slug, name, price, currency, active)")
+      .select("id, size, stock, reserved_stock, active, product:products!inner(id, slug, name, price, currency, active)")
       .eq("size", size)
       .eq("active", true)
       .eq("products.slug", productSlug)
       .eq("products.active", true)
       .single();
-    if (variantError || !variant || variant.stock < quantity) return json({ error: "Product unavailable" }, 409);
+    if (variantError || !variant || variant.stock - variant.reserved_stock < quantity) {
+      return json({ error: "Product unavailable" }, 409);
+    }
 
     const product = Array.isArray(variant.product) ? variant.product[0] : variant.product;
     const subtotal = Number(product.price) * quantity;
@@ -125,6 +134,7 @@ Deno.serve(async (request: Request) => {
       .select("id, order_number")
       .single();
     if (orderError || !order) throw orderError || new Error("Could not create order");
+    createdOrderId = order.id;
 
     const { error: itemError } = await supabaseAdmin.from("order_items").insert({
       order_id: order.id,
@@ -137,7 +147,17 @@ Deno.serve(async (request: Request) => {
     });
     if (itemError) throw itemError;
 
-    const stripeClient = new Stripe(stripeSecret, {
+    const { data: reserved, error: reservationError } = await supabaseAdmin.rpc("reserve_order_stock", {
+      p_order_id: order.id,
+    });
+    if (reservationError) throw reservationError;
+    if (!reserved) {
+      await supabaseAdmin.from("orders").delete().eq("id", order.id);
+      createdOrderId = null;
+      return json({ error: "Product unavailable" }, 409);
+    }
+
+    stripeClient = new Stripe(stripeSecret, {
       apiVersion: "2026-07-29.dahlia",
       httpClient: Stripe.createFetchHttpClient(),
     });
@@ -185,9 +205,11 @@ Deno.serve(async (request: Request) => {
         shipping_method_id: shippingMethod.id,
         pickup_point_code: pickupPoint?.code || "",
       },
+      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
       success_url: `${normalizedStorefrontUrl}thank-you.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${normalizedStorefrontUrl}index.html?payment=cancelled`,
     });
+    createdSessionId = session.id;
 
     const { error: updateError } = await supabaseAdmin
       .from("orders")
@@ -198,6 +220,21 @@ Deno.serve(async (request: Request) => {
     return json({ url: session.url });
   } catch (error) {
     console.error("create-checkout", error instanceof Error ? error.message : error);
+    if (stripeClient && createdSessionId) {
+      try {
+        await stripeClient.checkout.sessions.expire(createdSessionId);
+      } catch (expirationError) {
+        console.error("stripe-session-expiration", expirationError instanceof Error ? expirationError.message : expirationError);
+      }
+    }
+    if (supabaseAdmin && createdOrderId) {
+      try {
+        await supabaseAdmin.rpc("release_order_stock", { p_order_id: createdOrderId });
+        await supabaseAdmin.from("orders").delete().eq("id", createdOrderId);
+      } catch (cleanupError) {
+        console.error("checkout-cleanup", cleanupError instanceof Error ? cleanupError.message : cleanupError);
+      }
+    }
     return json({ error: "Unable to start checkout" }, 500);
   }
 });

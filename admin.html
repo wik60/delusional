@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#0a0a0a" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Panel zamówień — Delusional Crew</title>
+    <title>Panel administratora — Delusional Crew</title>
   </head>
   <body class="admin-body">
     <main class="admin-shell">
@@ -31,7 +31,8 @@
         <aside class="admin-sidebar">
           <a class="brand-logo brand-logo-light" href="./index.html" aria-label="Delusional Crew — strona główna"><img src="./images/brand-mark.png" alt="" /></a>
           <nav aria-label="Panel administratora">
-            <button class="active" type="button">ZAMÓWIENIA</button>
+            <button class="active" type="button" data-admin-view="orders">ZAMÓWIENIA</button>
+            <button type="button" data-admin-view="products">PRODUKTY</button>
           </nav>
           <button class="text-button" id="logoutButton" type="button">WYLOGUJ</button>
         </aside>
@@ -40,49 +41,60 @@
           <header class="dashboard-header">
             <div>
               <p class="eyebrow">BACK OFFICE</p>
-              <h1>ZAMÓWIENIA</h1>
+              <h1 id="adminTitle">ZAMÓWIENIA</h1>
             </div>
             <div class="admin-user" id="adminUser"></div>
           </header>
 
-          <div class="metrics">
-            <article><span>WSZYSTKIE</span><strong id="metricAll">0</strong></article>
-            <article><span>OPŁACONE</span><strong id="metricPaid">0</strong></article>
-            <article><span>DO WYSYŁKI</span><strong id="metricToShip">0</strong></article>
-            <article><span>PRZYCHÓD</span><strong id="metricRevenue">0 PLN</strong></article>
-          </div>
-
-          <div class="orders-toolbar">
-            <label>
-              <span class="sr-only">Szukaj zamówienia</span>
-              <input id="orderSearch" type="search" placeholder="SZUKAJ PO NUMERZE LUB E-MAILU" />
-            </label>
-            <select id="statusFilter" aria-label="Filtr statusu">
-              <option value="all">WSZYSTKIE STATUSY</option>
-              <option value="pending">OCZEKUJE</option>
-              <option value="paid">OPŁACONE</option>
-              <option value="processing">W REALIZACJI</option>
-              <option value="shipped">WYSŁANE</option>
-              <option value="cancelled">ANULOWANE</option>
-            </select>
-            <button class="refresh-button" id="refreshOrders" type="button">ODŚWIEŻ</button>
-          </div>
-
-          <div class="orders-table-wrap">
-            <table class="orders-table">
-              <thead>
-                <tr>
-                  <th>ZAMÓWIENIE</th><th>KLIENT</th><th>DATA</th><th>KWOTA</th><th>PŁATNOŚĆ</th><th>ETYKIETA</th><th>REALIZACJA</th>
-                </tr>
-              </thead>
-              <tbody id="ordersBody"></tbody>
-            </table>
-            <div class="orders-empty" id="ordersEmpty" hidden>
-              <h2>BRAK ZAMÓWIEŃ</h2>
-              <p>Nowe zamówienia pojawią się tutaj automatycznie.</p>
+          <section id="ordersPanel">
+            <div class="metrics">
+              <article><span>WSZYSTKIE</span><strong id="metricAll">0</strong></article>
+              <article><span>OPŁACONE</span><strong id="metricPaid">0</strong></article>
+              <article><span>DO WYSYŁKI</span><strong id="metricToShip">0</strong></article>
+              <article><span>PRZYCHÓD</span><strong id="metricRevenue">0 PLN</strong></article>
             </div>
-          </div>
-          <p class="form-message" id="ordersMessage" role="status"></p>
+
+            <div class="orders-toolbar">
+              <label>
+                <span class="sr-only">Szukaj zamówienia</span>
+                <input id="orderSearch" type="search" placeholder="SZUKAJ PO NUMERZE LUB E-MAILU" />
+              </label>
+              <select id="statusFilter" aria-label="Filtr statusu">
+                <option value="all">WSZYSTKIE STATUSY</option>
+                <option value="pending">OCZEKUJE</option>
+                <option value="paid">OPŁACONE</option>
+                <option value="processing">W REALIZACJI</option>
+                <option value="shipped">WYSŁANE</option>
+                <option value="cancelled">ANULOWANE</option>
+              </select>
+              <button class="refresh-button" id="refreshOrders" type="button">ODŚWIEŻ</button>
+            </div>
+
+            <div class="orders-table-wrap">
+              <table class="orders-table">
+                <thead>
+                  <tr>
+                    <th>ZAMÓWIENIE</th><th>KLIENT</th><th>DATA</th><th>KWOTA</th><th>PŁATNOŚĆ</th><th>ETYKIETA</th><th>REALIZACJA</th><th>AKCJE</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+              </table>
+              <div class="orders-empty" id="ordersEmpty" hidden>
+                <h2>BRAK ZAMÓWIEŃ</h2>
+                <p>Nowe zamówienia pojawią się tutaj automatycznie.</p>
+              </div>
+            </div>
+            <p class="form-message" id="ordersMessage" role="status"></p>
+          </section>
+
+          <section class="products-panel" id="productsPanel" hidden>
+            <div class="products-admin-toolbar">
+              <p>Zmieniaj zdjęcia produktu i stan magazynowy dla każdego rozmiaru.</p>
+              <button class="refresh-button" id="refreshProducts" type="button">ODŚWIEŻ</button>
+            </div>
+            <div class="products-admin-grid" id="productsGrid"></div>
+            <p class="form-message" id="productsMessage" role="status"></p>
+          </section>
         </div>
       </section>
     </main>

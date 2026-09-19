@@ -39,7 +39,7 @@ const els = Object.fromEntries([
   "cartQtyDown","cartQtyUp","shippingForm","shippingName","shippingEmail","shippingPhone","shippingCountry","shippingAddress1","shippingAddress2","shippingCity","shippingPostal","shippingMessage",
   "shippingOptionsStep","shippingQuotes","pickupPicker","pickupSelected","pickupMap","pickupList","checkoutButton",
   "checkoutMessage","sizeGuideToggle","sizeGuide","qtyDown","qtyUp","qtyValue","addToCart","productMessage",
-  "frontImage","backImage","prevImage","nextImage","imageStage","toast",
+  "frontImage","backImage","cartProductImage","prevImage","nextImage","imageStage","toast",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 const sizeButtons = [...document.querySelectorAll("[data-size]")];
@@ -56,6 +56,8 @@ let selectedPickup = null;
 let deliveryOrigin = null;
 let pickupMap = null;
 let pickupMarkers = null;
+let inventoryLoaded = false;
+let variantStocks = new Map();
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -80,6 +82,80 @@ function saveCart() {
   if (cart) localStorage.setItem(CART_KEY, JSON.stringify(cart));
   else localStorage.removeItem(CART_KEY);
   renderCart();
+}
+
+function availableStock(size) {
+  if (!inventoryLoaded) return 10;
+  return Math.max(0, Number(variantStocks.get(size) || 0));
+}
+
+function maxQuantity(size) {
+  return Math.min(10, availableStock(size));
+}
+
+function reconcileInventory() {
+  sizeButtons.forEach((button) => {
+    const stock = availableStock(button.dataset.size);
+    button.disabled = stock < 1;
+    button.classList.toggle("sold-out", stock < 1);
+    button.title = stock < 1 ? "SOLD OUT" : `${stock} AVAILABLE`;
+    button.setAttribute("aria-label", `${button.dataset.size}${stock < 1 ? " — sold out" : ` — ${stock} available`}`);
+  });
+
+  if (selectedSize && availableStock(selectedSize) < 1) {
+    selectedSize = "";
+    quantity = 1;
+    els.qtyValue.textContent = "1";
+    sizeButtons.forEach((button) => button.classList.remove("active"));
+  } else if (selectedSize) {
+    quantity = Math.max(1, Math.min(quantity, maxQuantity(selectedSize)));
+    els.qtyValue.textContent = String(quantity);
+  }
+
+  if (cart) {
+    const maximum = maxQuantity(cart.size);
+    if (maximum < 1) {
+      cart = null;
+      localStorage.removeItem(CART_KEY);
+      resetDelivery();
+      showToast("ITEM SOLD OUT");
+    } else if (cart.quantity > maximum) {
+      cart.quantity = maximum;
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      resetDelivery();
+      showToast("CART UPDATED TO AVAILABLE STOCK");
+    }
+  }
+
+  renderCart();
+}
+
+async function loadCatalog() {
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("front_image_url, back_image_url, image_url, product_variants(size, stock, reserved_stock, active)")
+    .eq("slug", PRODUCT.slug)
+    .single();
+
+  if (error || !product) {
+    console.error("catalog", error);
+    return;
+  }
+
+  const front = product.front_image_url || product.image_url;
+  const back = product.back_image_url;
+  if (front) {
+    els.frontImage.src = front;
+    els.cartProductImage.src = front;
+  }
+  if (back) els.backImage.src = back;
+
+  variantStocks = new Map((product.product_variants || []).map((variant) => [
+    variant.size,
+    variant.active ? Math.max(0, Number(variant.stock) - Number(variant.reserved_stock || 0)) : 0,
+  ]));
+  inventoryLoaded = true;
+  reconcileInventory();
 }
 
 function showMessage(element, message) {
@@ -125,7 +201,9 @@ function renderCart() {
     ? (delivery === 0 ? "FREE" : money.format(delivery))
     : "—";
   els.cartTotal.textContent = money.format(subtotal + delivery);
-  els.checkoutButton.disabled = !selectedShipping || (selectedShipping.type === "parcel_locker" && !selectedPickup);
+  const cartAvailable = availableStock(cart.size) >= cart.quantity;
+  els.checkoutButton.disabled = !cartAvailable || !selectedShipping || (selectedShipping.type === "parcel_locker" && !selectedPickup);
+  if (!cartAvailable) showMessage(els.checkoutMessage, "THE SELECTED QUANTITY IS NO LONGER AVAILABLE.");
 }
 
 function openCart() {
@@ -328,6 +406,8 @@ function renderPickupPicker() {
 sizeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     selectedSize = button.dataset.size;
+    quantity = Math.max(1, Math.min(quantity, maxQuantity(selectedSize)));
+    els.qtyValue.textContent = String(quantity);
     sizeButtons.forEach((item) => item.classList.toggle("active", item === button));
     showMessage(els.productMessage, "");
   });
@@ -352,12 +432,23 @@ els.qtyDown.addEventListener("click", () => {
   els.qtyValue.textContent = String(quantity);
 });
 els.qtyUp.addEventListener("click", () => {
-  quantity = Math.min(10, quantity + 1);
+  const maximum = selectedSize ? maxQuantity(selectedSize) : 10;
+  quantity = Math.min(maximum, quantity + 1);
   els.qtyValue.textContent = String(quantity);
+  if (selectedSize && quantity >= maximum) {
+    showMessage(
+      els.productMessage,
+      availableStock(selectedSize) > 10 ? "MAXIMUM 10 PER ORDER." : `ONLY ${maximum} AVAILABLE IN SIZE ${selectedSize}.`,
+    );
+  }
 });
 
 els.addToCart.addEventListener("click", () => {
   if (!requireSize()) return;
+  if (availableStock(selectedSize) < quantity) {
+    showMessage(els.productMessage, "THIS QUANTITY IS NO LONGER AVAILABLE.");
+    return;
+  }
   cart = { size: selectedSize, quantity };
   resetDelivery();
   saveCart();
@@ -383,7 +474,14 @@ els.cartQtyDown.addEventListener("click", () => {
 });
 els.cartQtyUp.addEventListener("click", () => {
   if (!cart) return;
-  cart.quantity = Math.min(10, cart.quantity + 1);
+  const maximum = maxQuantity(cart.size);
+  cart.quantity = Math.min(maximum, cart.quantity + 1);
+  if (cart.quantity >= maximum) {
+    showMessage(
+      els.checkoutMessage,
+      availableStock(cart.size) > 10 ? "MAXIMUM 10 PER ORDER." : `ONLY ${maximum} AVAILABLE IN SIZE ${cart.size}.`,
+    );
+  }
   resetDelivery();
   saveCart();
 });
@@ -509,3 +607,4 @@ if (new URLSearchParams(location.search).get("payment") === "cancelled") {
 }
 
 renderCart();
+await loadCatalog();

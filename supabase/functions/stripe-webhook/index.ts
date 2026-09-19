@@ -72,7 +72,7 @@ Deno.serve(async (request: Request) => {
         }
       }
     }
-  } else if (event.type === "checkout.session.async_payment_failed") {
+  } else if (event.type === "checkout.session.async_payment_failed" || event.type === "checkout.session.expired") {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.order_id;
     if (orderId) {
@@ -82,10 +82,18 @@ Deno.serve(async (request: Request) => {
         { auth: { persistSession: false } },
       );
       const { error } = await supabaseAdmin.from("orders").update({
-        payment_status: "failed",
-        fulfillment_status: "pending",
+        payment_status: event.type === "checkout.session.expired" ? "cancelled" : "failed",
+        fulfillment_status: event.type === "checkout.session.expired" ? "cancelled" : "pending",
       }).eq("id", orderId);
       if (error) return new Response("Database update failed", { status: 500 });
+
+      const { error: releaseError } = await supabaseAdmin.rpc("release_order_stock", {
+        p_order_id: orderId,
+      });
+      if (releaseError) {
+        console.error("Stock release failed", releaseError.message);
+        return new Response("Stock release failed", { status: 500 });
+      }
     }
   }
 

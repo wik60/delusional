@@ -17,10 +17,13 @@ const statusLabels = {
 const els = Object.fromEntries([
   "loginView", "dashboardView", "loginForm", "loginMessage", "adminUser", "logoutButton",
   "metricAll", "metricPaid", "metricToShip", "metricRevenue", "orderSearch", "statusFilter",
-  "refreshOrders", "ordersBody", "ordersEmpty", "ordersMessage",
+  "refreshOrders", "ordersBody", "ordersEmpty", "ordersMessage", "adminTitle", "ordersPanel",
+  "productsPanel", "refreshProducts", "productsGrid", "productsMessage",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
+let products = [];
+let activeAdminView = "orders";
 
 function setView(authenticated) {
   els.loginView.hidden = authenticated;
@@ -57,6 +60,24 @@ async function loadOrders() {
   els.ordersMessage.textContent = "";
   renderMetrics();
   renderOrders();
+}
+
+async function loadProducts() {
+  els.productsMessage.textContent = "ŁADOWANIE…";
+  const { data: rows, error } = await supabase
+    .from("products")
+    .select("id, slug, name, image_url, front_image_url, back_image_url, product_variants(id, size, stock, reserved_stock, active)")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    els.productsMessage.textContent = "NIE UDAŁO SIĘ WCZYTAĆ PRODUKTÓW.";
+    return;
+  }
+
+  products = rows || [];
+  els.productsMessage.textContent = "";
+  renderProducts();
 }
 
 function renderMetrics() {
@@ -97,7 +118,8 @@ function renderOrders() {
       <td><strong>${money.format(Number(order.total_amount))}</strong></td>
       <td><span class="status status-${order.payment_status}">${statusLabels[order.payment_status] || order.payment_status}</span></td>
       <td class="label-cell"></td>
-      <td></td>`;
+      <td class="fulfillment-cell"></td>
+      <td class="order-actions-cell"></td>`;
 
     const labelCell = row.querySelector(".label-cell");
     renderLabelActions(order, labelCell);
@@ -112,9 +134,232 @@ function renderOrders() {
       select.append(option);
     }
     select.addEventListener("change", () => updateFulfillment(order.id, select.value, select));
-    row.lastElementChild.append(select);
+    row.querySelector(".fulfillment-cell").append(select);
+
+    const remove = makeAdminButton("USUŃ", "delete-order-button");
+    remove.setAttribute("aria-label", `Usuń zamówienie ${order.order_number}`);
+    remove.addEventListener("click", () => deleteOrder(order, remove));
+    row.querySelector(".order-actions-cell").append(remove);
     els.ordersBody.append(row);
   }
+}
+
+async function deleteOrder(order, button) {
+  const confirmed = window.confirm(
+    `Usunąć zamówienie ${order.order_number}? Tej operacji nie można cofnąć. Aktywna płatność Stripe zostanie anulowana.`,
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = "USUWANIE…";
+  els.ordersMessage.textContent = "";
+
+  const { data, error } = await supabase.functions.invoke("admin-delete-order", {
+    body: { orderId: order.id },
+  });
+
+  if (error || data?.error) {
+    console.error(error || data?.error);
+    els.ordersMessage.textContent = "NIE UDAŁO SIĘ USUNĄĆ ZAMÓWIENIA.";
+    button.disabled = false;
+    button.textContent = "USUŃ";
+    return;
+  }
+
+  orders = orders.filter((item) => item.id !== order.id);
+  renderMetrics();
+  renderOrders();
+  els.ordersMessage.textContent = `ZAMÓWIENIE ${order.order_number} ZOSTAŁO USUNIĘTE.`;
+}
+
+function imageUrl(product, side) {
+  if (side === "front") return product.front_image_url || product.image_url || "./images/classic-zip-front.jpg";
+  return product.back_image_url || "./images/classic-zip-back.jpg";
+}
+
+function productImageEditor(product, side, label) {
+  const editor = document.createElement("div");
+  editor.className = "product-image-editor";
+
+  const heading = document.createElement("strong");
+  heading.textContent = label;
+  const preview = document.createElement("img");
+  preview.src = imageUrl(product, side);
+  preview.alt = `${product.name} — ${label.toLowerCase()}`;
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/jpeg,image/png,image/webp";
+  input.hidden = true;
+
+  const button = makeAdminButton("WYBIERZ I WGRAJ", "image-upload-button");
+  button.addEventListener("click", () => input.click());
+  input.addEventListener("change", async () => {
+    const [file] = input.files || [];
+    if (file) await uploadProductImage(product, side, file, button);
+    input.value = "";
+  });
+
+  editor.append(heading, preview, input, button);
+  return editor;
+}
+
+function renderProducts() {
+  els.productsGrid.replaceChildren();
+
+  for (const product of products) {
+    const card = document.createElement("article");
+    card.className = "product-admin-card";
+
+    const header = document.createElement("header");
+    const title = document.createElement("h2");
+    title.textContent = product.name;
+    const slug = document.createElement("small");
+    slug.textContent = product.slug;
+    header.append(title, slug);
+
+    const images = document.createElement("div");
+    images.className = "product-images-admin";
+    images.append(
+      productImageEditor(product, "front", "PRZÓD"),
+      productImageEditor(product, "back", "TYŁ"),
+    );
+
+    const stockForm = document.createElement("form");
+    stockForm.className = "stock-form";
+    const stockTitle = document.createElement("h3");
+    stockTitle.textContent = "STAN MAGAZYNOWY";
+    stockForm.append(stockTitle);
+
+    const stockRows = document.createElement("div");
+    stockRows.className = "stock-rows";
+    const variants = [...(product.product_variants || [])].sort(
+      (a, b) => ["S", "M", "L", "XL"].indexOf(a.size) - ["S", "M", "L", "XL"].indexOf(b.size),
+    );
+
+    for (const variant of variants) {
+      const row = document.createElement("label");
+      row.className = "stock-row";
+      const size = document.createElement("strong");
+      size.textContent = variant.size;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "numeric";
+      input.min = String(variant.reserved_stock || 0);
+      input.max = "99999";
+      input.step = "1";
+      input.required = true;
+      input.value = String(variant.stock);
+      input.dataset.variantId = variant.id;
+      const details = document.createElement("small");
+      details.textContent = `DOSTĘPNE: ${Math.max(0, variant.stock - (variant.reserved_stock || 0))} · ZAREZERWOWANE: ${variant.reserved_stock || 0}`;
+      row.append(size, input, details);
+      stockRows.append(row);
+    }
+
+    const save = makeAdminButton("ZAPISZ STANY", "save-stock-button");
+    save.type = "submit";
+    stockForm.append(stockRows, save);
+    stockForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!stockForm.reportValidity()) return;
+      await saveStock(product, stockForm, save);
+    });
+
+    card.append(header, images, stockForm);
+    els.productsGrid.append(card);
+  }
+}
+
+async function uploadProductImage(product, side, file, button) {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type) || file.size > 8 * 1024 * 1024) {
+    els.productsMessage.textContent = "WYBIERZ PLIK JPG, PNG LUB WEBP DO 8 MB.";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "WGRYWANIE…";
+  els.productsMessage.textContent = "";
+
+  const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${product.id}/${side}-${Date.now()}.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from("product-images")
+    .upload(path, file, { cacheControl: "31536000", contentType: file.type, upsert: false });
+
+  if (uploadError) {
+    console.error(uploadError);
+    els.productsMessage.textContent = "NIE UDAŁO SIĘ WGRAĆ ZDJĘCIA.";
+    button.disabled = false;
+    button.textContent = "WYBIERZ I WGRAJ";
+    return;
+  }
+
+  const { data: publicUrl } = supabase.storage.from("product-images").getPublicUrl(path);
+  const column = side === "front" ? "front_image_url" : "back_image_url";
+  const { error: updateError } = await supabase
+    .from("products")
+    .update({ [column]: publicUrl.publicUrl })
+    .eq("id", product.id);
+
+  if (updateError) {
+    console.error(updateError);
+    await supabase.storage.from("product-images").remove([path]);
+    els.productsMessage.textContent = "PLIK WGRAŁ SIĘ, ALE NIE UDAŁO SIĘ PRZYPISAĆ GO DO PRODUKTU.";
+    button.disabled = false;
+    button.textContent = "WYBIERZ I WGRAJ";
+    return;
+  }
+
+  els.productsMessage.textContent = `${side === "front" ? "ZDJĘCIE PRZODU" : "ZDJĘCIE TYŁU"} ZOSTAŁO ZMIENIONE.`;
+  await loadProducts();
+}
+
+async function saveStock(product, form, button) {
+  button.disabled = true;
+  button.textContent = "ZAPISYWANIE…";
+  els.productsMessage.textContent = "";
+
+  const updates = [...form.querySelectorAll("input[data-variant-id]")].map((input) => ({
+    id: input.dataset.variantId,
+    stock: Number(input.value),
+  }));
+
+  const invalid = updates.some((item) => !Number.isInteger(item.stock) || item.stock < 0 || item.stock > 99999);
+  if (invalid) {
+    els.productsMessage.textContent = "STAN MUSI BYĆ LICZBĄ CAŁKOWITĄ OD 0 DO 99999.";
+    button.disabled = false;
+    button.textContent = "ZAPISZ STANY";
+    return;
+  }
+
+  const { error } = await supabase.rpc("admin_update_product_stock", {
+    p_product_id: product.id,
+    p_stocks: updates,
+  });
+
+  if (error) {
+    console.error(error);
+    els.productsMessage.textContent = "NIE UDAŁO SIĘ ZAPISAĆ STANU. STAN NIE MOŻE BYĆ NIŻSZY NIŻ LICZBA ZAREZERWOWANYCH SZTUK.";
+    await loadProducts();
+    return;
+  }
+
+  els.productsMessage.textContent = `STAN PRODUKTU ${product.name} ZOSTAŁ ZAPISANY.`;
+  await loadProducts();
+}
+
+async function setAdminView(view) {
+  activeAdminView = view;
+  const showingProducts = view === "products";
+  els.ordersPanel.hidden = showingProducts;
+  els.productsPanel.hidden = !showingProducts;
+  els.adminTitle.textContent = showingProducts ? "PRODUKTY" : "ZAMÓWIENIA";
+  document.querySelectorAll("[data-admin-view]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.adminView === view);
+  });
+  if (showingProducts) await loadProducts();
 }
 
 function labelStatusText(order) {
@@ -250,7 +495,8 @@ els.loginForm.addEventListener("submit", async (event) => {
 async function showDashboard(user) {
   setView(true);
   els.adminUser.textContent = ADMIN_USERNAME;
-  await loadOrders();
+  await Promise.all([loadOrders(), loadProducts()]);
+  await setAdminView(activeAdminView);
 }
 
 els.logoutButton.addEventListener("click", async () => {
@@ -259,8 +505,12 @@ els.logoutButton.addEventListener("click", async () => {
   els.loginForm.reset();
 });
 els.refreshOrders.addEventListener("click", loadOrders);
+els.refreshProducts.addEventListener("click", loadProducts);
 els.orderSearch.addEventListener("input", renderOrders);
 els.statusFilter.addEventListener("change", renderOrders);
+document.querySelectorAll("[data-admin-view]").forEach((button) => {
+  button.addEventListener("click", () => setAdminView(button.dataset.adminView));
+});
 
 const { data: { session } } = await supabase.auth.getSession();
 if (session?.user && await verifyAdmin(session.user)) await showDashboard(session.user);
