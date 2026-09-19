@@ -45,62 +45,98 @@ async function getParcelLockers(
   postalCode: string,
   origin: { latitude: number; longitude: number } | null,
 ): Promise<ParcelLocker[]> {
-  // InPost's city filter is not proximity-aware and Warsaw has far more points than
-  // a single page. Querying the first 100 by city could therefore omit a locker
-  // literally next door. Use InPost's native nearest-points query instead.
-  const params = new URLSearchParams({
-    type: "parcel_locker",
-    status: "Operating",
-    sort_by: "distance_to_relative_point",
-    sort_order: "asc",
-    limit: "50",
-    max_distance: "10000",
-  });
+  // Load EVERY operating InPost parcel locker for the selected city, across all
+  // API pages. This avoids missing nearby machines in large cities like Warsaw.
+  const perPage = 500;
 
-  if (origin) {
-    params.set("relative_point", `${origin.latitude},${origin.longitude}`);
-  } else {
-    // If street geocoding ever fails, the postal code still gives InPost a local
-    // reference point instead of falling back to an arbitrary city-wide page.
-    params.set("relative_post_code", postalCode);
-  }
+  const fetchPage = async (page: number) => {
+    const params = new URLSearchParams({
+      city,
+      type: "parcel_locker",
+      status: "Operating",
+      per_page: String(perPage),
+      page: String(page),
+    });
 
-  try {
     const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points?${params}`, {
       signal: AbortSignal.timeout(6500),
       headers: { Accept: "application/json" },
     });
-    if (!response.ok) return [];
+    if (!response.ok) throw new Error(`InPost points HTTP ${response.status}`);
+    return await response.json();
+  };
 
-    const payload = await response.json();
+  try {
+    const first = await fetchPage(1);
+    const firstItems = Array.isArray(first?.items) ? first.items : [];
+    const meta = first?.meta || {};
+    const totalPages = Math.max(
+      1,
+      Math.min(
+        20,
+        Number(meta.total_pages || meta.totalPages || first?.total_pages || first?.totalPages || 1) || 1,
+      ),
+    );
+
+    const pages: any[] = [first];
+    if (totalPages > 1) {
+      for (let start = 2; start <= totalPages; start += 4) {
+        const batch = [];
+        for (let page = start; page < start + 4 && page <= totalPages; page += 1) {
+          batch.push(fetchPage(page));
+        }
+        pages.push(...await Promise.all(batch));
+      }
+    }
+
+    // If the legacy API doesn't expose page metadata, keep walking pages until
+    // it returns fewer than perPage results.
+    if (totalPages === 1 && firstItems.length >= perPage) {
+      for (let page = 2; page <= 20; page += 1) {
+        const next = await fetchPage(page);
+        pages.push(next);
+        if (!Array.isArray(next?.items) || next.items.length < perPage) break;
+      }
+    }
+
     const seen = new Set<string>();
-    const points: ParcelLocker[] = (payload.items || []).flatMap((point: Record<string, unknown>) => {
-      const address = point.address as Record<string, unknown> | undefined;
-      const details = point.address_details as Record<string, unknown> | undefined;
-      const location = point.location as Record<string, unknown> | undefined;
-      const code = String(point.name || "").slice(0, 32);
-      const latitude = Number(location?.latitude);
-      const longitude = Number(location?.longitude);
+    const points: ParcelLocker[] = pages
+      .flatMap((payload) => Array.isArray(payload?.items) ? payload.items : [])
+      .flatMap((point: Record<string, unknown>) => {
+        const address = point.address as Record<string, unknown> | undefined;
+        const details = point.address_details as Record<string, unknown> | undefined;
+        const location = point.location as Record<string, unknown> | undefined;
+        const code = String(point.name || "").slice(0, 32);
+        const latitude = Number(location?.latitude);
+        const longitude = Number(location?.longitude);
 
-      if (!code || seen.has(code) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
-      seen.add(code);
+        if (!code || seen.has(code) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+        seen.add(code);
 
-      return [{
-        code,
-        name: String(point.display_name || `InPost Paczkomat ${code}`).slice(0, 120),
-        address: String(address?.line1 || "").slice(0, 160),
-        city: String(details?.city || city).slice(0, 80),
-        postalCode: String(details?.post_code || "").slice(0, 16),
-        latitude,
-        longitude,
-        distanceKm: origin
-          ? distanceKm(origin.latitude, origin.longitude, latitude, longitude)
-          : (Number.isFinite(Number(point.distance)) ? Number(point.distance) / 1000 : undefined),
-      }];
-    });
+        return [{
+          code,
+          name: String(point.display_name || `InPost Paczkomat ${code}`).slice(0, 120),
+          address: String(address?.line1 || "").slice(0, 160),
+          city: String(details?.city || city).slice(0, 80),
+          postalCode: String(details?.post_code || "").slice(0, 16),
+          latitude,
+          longitude,
+          distanceKm: origin
+            ? distanceKm(origin.latitude, origin.longitude, latitude, longitude)
+            : undefined,
+        }];
+      });
 
-    points.sort((a, b) => Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999));
-    return points.slice(0, 30);
+    if (origin) {
+      points.sort((a, b) => Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999));
+    } else {
+      points.sort((a, b) =>
+        String(a.postalCode === postalCode ? "0" : "1").localeCompare(String(b.postalCode === postalCode ? "0" : "1")) ||
+        a.address.localeCompare(b.address, "pl")
+      );
+    }
+
+    return points;
   } catch (error) {
     console.error("parcel-lockers", error instanceof Error ? error.message : error);
     return [];
@@ -160,7 +196,12 @@ Deno.serve(async (request: Request) => {
     const parcelLockers = country === "PL" ? await getParcelLockers(city, postalCode, origin) : [];
 
     return json({
-      destination: { name, email, phone, country, addressLine1, addressLine2, postalCode, city, geocoded: Boolean(origin) },
+      destination: {
+        name, email, phone, country, addressLine1, addressLine2, postalCode, city,
+        geocoded: Boolean(origin),
+        latitude: origin?.latitude ?? null,
+        longitude: origin?.longitude ?? null,
+      },
       quotes,
       parcelLockers,
     });
