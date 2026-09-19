@@ -201,7 +201,24 @@ function productImageEditor(product, url, index) {
   deleteButton.title = "Usuń zdjęcie";
   deleteButton.addEventListener("click", () => deleteProductImage(product, index, url, deleteButton));
 
-  previewWrap.append(preview, deleteButton);
+  const gallery = productGalleryImages(product);
+  const orderControls = document.createElement("div");
+  orderControls.className = "image-order-controls";
+
+  const moveLeft = makeAdminButton("←", "image-order-button");
+  moveLeft.setAttribute("aria-label", `Przesuń zdjęcie ${index + 1} w lewo`);
+  moveLeft.title = "Przesuń wcześniej";
+  moveLeft.disabled = index === 0;
+  moveLeft.addEventListener("click", () => moveProductImage(product, index, index - 1, moveLeft));
+
+  const moveRight = makeAdminButton("→", "image-order-button");
+  moveRight.setAttribute("aria-label", `Przesuń zdjęcie ${index + 1} w prawo`);
+  moveRight.title = "Przesuń później";
+  moveRight.disabled = index === gallery.length - 1;
+  moveRight.addEventListener("click", () => moveProductImage(product, index, index + 1, moveRight));
+
+  orderControls.append(moveLeft, moveRight);
+  previewWrap.append(preview, deleteButton, orderControls);
   editor.append(heading, previewWrap);
   return editor;
 }
@@ -489,6 +506,39 @@ function renderProductEditor(product = null) {
 
   card.append(form);
   return card;
+}
+
+async function moveProductImage(product, fromIndex, toIndex, button) {
+  const current = productGalleryImages(product);
+  if (
+    fromIndex < 0 ||
+    fromIndex >= current.length ||
+    toIndex < 0 ||
+    toIndex >= current.length ||
+    fromIndex === toIndex
+  ) return;
+
+  button.disabled = true;
+  els.productsMessage.textContent = "";
+
+  const next = [...current];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+
+  const { error } = await supabase
+    .from("products")
+    .update({ gallery_images: next })
+    .eq("id", product.id);
+
+  if (error) {
+    console.error(error);
+    els.productsMessage.textContent = "NIE UDAŁO SIĘ ZMIENIĆ KOLEJNOŚCI ZDJĘĆ.";
+    button.disabled = false;
+    return;
+  }
+
+  els.productsMessage.textContent = "KOLEJNOŚĆ ZDJĘĆ ZOSTAŁA ZMIENIONA.";
+  await loadProducts();
 }
 
 async function deleteProductImage(product, index, url, button) {
