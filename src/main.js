@@ -42,16 +42,15 @@ const els = Object.fromEntries([
   "frontImage","backImage","cartProductImage","prevImage","nextImage","imageStage","toast", "productName",
   "productCode", "productDescription", "currentPrice", "comparePrice", "announcement",
   "sizeOptions", "cartProductName", "catalogSection", "catalogGrid", "newsletterSection",
-  "newsletterForm", "newsletterEmail", "newsletterCompany", "newsletterMessage",
+  "newsletterForm", "newsletterEmail", "newsletterCompany", "newsletterMessage", "viewDots",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let sizeButtons = [...document.querySelectorAll("[data-size]")];
-const viewButtons = [...document.querySelectorAll("[data-view]")];
 const requestedSlug = new URLSearchParams(location.search).get("product") || PRODUCT.slug;
 
 let selectedSize = "";
 let quantity = 1;
-let activeView = "front";
+let activeImageIndex = 0;
 let cart = readCart();
 let quotes = [];
 let parcelLockers = [];
@@ -218,6 +217,7 @@ async function loadCatalog() {
   els.frontImage.alt = `${product.name} — front`;
   els.backImage.alt = `${product.name} — back`;
   els.cartProductImage.alt = product.name;
+  setImage(0);
 
   if (cart && cart.productSlug !== PRODUCT.slug) {
     cart = null;
@@ -348,16 +348,40 @@ function closeCart() {
   setTimeout(() => { els.cartBackdrop.hidden = true; }, 280);
 }
 
-function setView(view) {
-  activeView = view;
-  els.frontImage.classList.toggle("is-active", view === "front");
-  els.backImage.classList.toggle("is-active", view === "back");
-  viewButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+function getProductShots() {
+  return [...els.imageStage.querySelectorAll(".product-shot")];
+}
+
+function renderImageDots() {
+  if (!els.viewDots) return;
+  const shots = getProductShots();
+  els.viewDots.replaceChildren();
+
+  shots.forEach((_, index) => {
+    const dot = document.createElement("span");
+    dot.className = "view-dot";
+    dot.classList.toggle("active", index === activeImageIndex);
+    dot.setAttribute("aria-hidden", "true");
+    els.viewDots.append(dot);
+  });
+}
+
+function setImage(index) {
+  const shots = getProductShots();
+  if (!shots.length) return;
+
+  activeImageIndex = ((index % shots.length) + shots.length) % shots.length;
+
+  shots.forEach((shot, shotIndex) => {
+    shot.classList.toggle("is-active", shotIndex === activeImageIndex);
+  });
+
+  renderImageDots();
 }
 
 function animateToCart() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const source = activeView === "front" ? els.frontImage : els.backImage;
+  const source = getProductShots()[activeImageIndex] || els.frontImage;
   const from = source.getBoundingClientRect();
   const to = els.cartTrigger.getBoundingClientRect();
   const clone = source.cloneNode();
@@ -540,8 +564,8 @@ function bindSizeButtons() {
 
 bindSizeButtons();
 
-els.prevImage.addEventListener("click", () => setView(activeView === "front" ? "back" : "front"));
-els.nextImage.addEventListener("click", () => setView(activeView === "front" ? "back" : "front"));
+els.prevImage.addEventListener("click", () => setImage(activeImageIndex - 1));
+els.nextImage.addEventListener("click", () => setImage(activeImageIndex + 1));
 
 els.sizeGuideToggle.addEventListener("click", () => {
   const opening = els.sizeGuide.hidden;
