@@ -1,118 +1,13 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Delusional Classic Zip Up — szara bluza 420 GSM." />
-    <meta name="theme-color" content="#ede9e4" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Delusional Classic Zip Up — Delusional Crew</title>
+    <meta name="robots" content="noindex" />
+    <title>Delusional Crew</title>
+    <script>location.replace("./index.html" + location.search + location.hash);</script>
   </head>
-  <body class="product-page-body">
-    <header class="product-header">
-      <nav class="product-nav" aria-label="Główna nawigacja">
-        <a href="./index.html">STRONA GŁÓWNA</a>
-        <a href="./index.html#products">KATALOG</a>
-        <a href="mailto:hello@delusionalcrew.pl">KONTAKT</a>
-      </nav>
-      <a class="brand-logo product-logo" href="./index.html" aria-label="Delusional Crew — strona główna">
-        <img src="./images/brand-mark.png" alt="" />
-      </a>
-      <div class="product-header-tools">
-        <span>PLN / PL</span>
-        <a href="./admin.html" aria-label="Panel pracownika">KONTO</a>
-        <span aria-label="Koszyk">TORBA <b id="productBagCount">0</b></span>
-      </div>
-    </header>
-
-    <main class="product-layout">
-      <section class="product-gallery" aria-label="Zdjęcia produktu">
-        <figure class="product-gallery-swap">
-          <img class="gallery-front" src="./images/classic-zip-front.jpg" alt="Delusional Classic Zip Up — przód" />
-          <img class="gallery-back" src="./images/classic-zip-back.jpg" alt="Delusional Classic Zip Up — tył" />
-          <span>NAJEDŹ, ABY ZOBACZYĆ TYŁ</span>
-        </figure>
-      </section>
-
-      <section class="product-panel" aria-labelledby="productTitle">
-        <div class="product-panel-inner">
-          <p class="product-kicker">DELUSIONAL CREW / 001</p>
-          <h1 id="productTitle">DELUSIONAL CLASSIC ZIP UP</h1>
-          <div class="product-price"><strong>220,00 ZŁ</strong><s>260,00 ZŁ</s></div>
-
-          <button class="size-guide-toggle" id="sizeGuideToggle" type="button" aria-controls="sizeGuide" aria-expanded="false">
-            <span>ROZMIARÓWKA</span><span aria-hidden="true">+</span>
-          </button>
-          <div class="size-guide" id="sizeGuide" hidden>
-            <table>
-              <thead><tr><th>ROZMIAR</th><th>KLATKA (CM)</th><th>DŁUGOŚĆ (CM)</th><th>RĘKAW (CM)</th></tr></thead>
-              <tbody>
-                <tr><th>S</th><td>64</td><td>64</td><td>61</td></tr>
-                <tr><th>M</th><td>66</td><td>66</td><td>62</td></tr>
-                <tr><th>L</th><td>68</td><td>68</td><td>63</td></tr>
-                <tr><th>XL</th><td>72</td><td>72</td><td>65</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="product-divider"></div>
-          <fieldset class="product-size-picker">
-            <legend>ROZMIAR</legend>
-            <div id="productSizeOptions">
-              <button type="button" data-product-size="S">S</button>
-              <button type="button" data-product-size="M">M</button>
-              <button type="button" data-product-size="L">L</button>
-              <button type="button" data-product-size="XL">XL</button>
-            </div>
-          </fieldset>
-
-          <div class="product-buy-row">
-            <div class="product-quantity" aria-label="Ilość">
-              <button id="productQtyDown" type="button" aria-label="Zmniejsz ilość">−</button>
-              <span id="productQty">1</span>
-              <button id="productQtyUp" type="button" aria-label="Zwiększ ilość">+</button>
-            </div>
-            <button class="product-add-button" id="productAddButton" type="button">DODAJ DO KOSZYKA</button>
-          </div>
-
-          <p class="product-note">DLA LEPSZEGO DOPASOWANIA POLECAMY WYBRAĆ ROZMIAR MNIEJSZY.</p>
-          <details class="product-details">
-            <summary>SZCZEGÓŁY</summary>
-            <p>Ciężka bawełna 420 GSM, boxy cropped fit, zamek na całej długości i nadruk Delusional.</p>
-          </details>
-
-          <section class="product-checkout" id="productCheckout" aria-labelledby="checkoutTitle">
-            <p class="product-kicker">DOSTAWA I PŁATNOŚĆ</p>
-            <h2 id="checkoutTitle">DOKOŃCZ ZAMÓWIENIE.</h2>
-            <form class="product-shipping-form" id="productShippingForm">
-              <label><span>KRAJ</span><select id="productCountry"><option value="PL">POLSKA</option><option value="DK">DANIA</option></select></label>
-              <label><span>MIASTO</span><input id="productCity" required autocomplete="address-level2" placeholder="WARSZAWA" /></label>
-              <label><span>KOD POCZTOWY</span><input id="productPostal" required autocomplete="postal-code" placeholder="00-001" /></label>
-              <button type="submit">OBLICZ DOSTAWĘ</button>
-            </form>
-            <p class="checkout-message" id="productShippingMessage" role="status"></p>
-            <div class="product-shipping-quotes" id="productShippingQuotes" aria-live="polite"></div>
-            <section class="pickup-picker" id="productPickupPicker" hidden aria-labelledby="productPickupTitle">
-              <div class="pickup-picker-heading">
-                <div><p class="product-kicker">PUNKT ODBIORU</p><h3 id="productPickupTitle">WYBIERZ PACZKOMAT.</h3></div>
-                <strong id="productPickupSelected">NIE WYBRANO</strong>
-              </div>
-              <div class="pickup-map" id="productPickupMap" aria-label="Mapa paczkomatów"></div>
-              <div class="pickup-list" id="productPickupList"></div>
-            </section>
-            <button class="start-payment-button" id="startPaymentButton" type="button" disabled>PRZEJDŹ DO STRIPE</button>
-            <p class="checkout-message" id="paymentMessage" role="alert"></p>
-            <p class="stripe-secure">Bezpieczna płatność na stronie Stripe. Po zakupie otrzymasz potwierdzenie na podany e-mail.</p>
-          </section>
-        </div>
-      </section>
-    </main>
-
-    <footer class="product-footer">
-      <span>© 2026 DELUSIONAL</span>
-      <a href="./index.html#shipping">DOSTAWA</a>
-      <a href="./admin.html">PANEL PRACOWNIKA</a>
-    </footer>
-    <script type="module" src="./src/product.js"></script>
+  <body>
+    <a href="./index.html">Continue to Delusional Crew</a>
   </body>
 </html>
