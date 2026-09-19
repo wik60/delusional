@@ -4,6 +4,27 @@ import L from "leaflet";
 import { PRODUCT } from "./config.js";
 import { supabase } from "./supabase.js";
 
+
+const siteLoader = document.querySelector("#siteLoader");
+const loaderStartedAt = performance.now();
+
+function dismissSiteLoader() {
+  if (!siteLoader || siteLoader.classList.contains("is-leaving")) return;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const minimumVisible = reducedMotion ? 120 : 1150;
+  const delay = Math.max(0, minimumVisible - (performance.now() - loaderStartedAt));
+
+  window.setTimeout(() => {
+    siteLoader.classList.add("is-leaving");
+    window.setTimeout(() => siteLoader.remove(), reducedMotion ? 180 : 600);
+  }, delay);
+}
+
+if (document.readyState === "complete") dismissSiteLoader();
+else window.addEventListener("load", dismissSiteLoader, { once: true });
+
+window.setTimeout(dismissSiteLoader, 2600);
+
 const CART_KEY = "delusional-cart-v3";
 const money = new Intl.NumberFormat("en-GB", {
   style: "currency",
