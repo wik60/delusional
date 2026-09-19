@@ -120,7 +120,10 @@ Deno.serve(async (request: Request) => {
       mode: "payment",
       integration_identifier: "delusional_qmwrpzka",
       customer_creation: "always",
-      billing_address_collection: "required",
+      // The embedded shipping Address Element already collects the delivery
+      // address. Let Stripe request billing details only when the selected
+      // payment method actually needs them.
+      billing_address_collection: "auto",
       shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
       line_items: lineItems,
       metadata: { order_id: order.id, order_number: order.order_number, shipping_method_id: shippingMethod.id },
