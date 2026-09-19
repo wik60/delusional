@@ -1,0 +1,1 @@
+alter table public.orders\n  add column if not exists customer_phone text;\n
