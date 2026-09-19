@@ -46,7 +46,7 @@ async function loadOrders() {
   els.ordersMessage.textContent = "ŁADOWANIE…";
   const { data: rows, error } = await supabase
     .from("orders")
-    .select("id, order_number, customer_email, customer_name, customer_phone, created_at, total_amount, currency, payment_status, fulfillment_status, shipping_address_line1, shipping_address_line2, shipping_postal_code, shipping_city, shipping_country, shipping_carrier, shipping_service, pickup_point_code, pickup_point_address, order_items(product_name, size, quantity, unit_price)")
+    .select("id, order_number, customer_email, customer_name, customer_phone, created_at, total_amount, currency, payment_status, fulfillment_status, shipping_address_line1, shipping_address_line2, shipping_postal_code, shipping_city, shipping_country, shipping_carrier, shipping_service, pickup_point_code, pickup_point_address, inpost_shipment_id, tracking_number, shipping_label_path, shipping_label_status, shipping_label_error, shipping_label_created_at, print_job_id, printed_at, order_items(product_name, size, quantity, unit_price)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -96,7 +96,11 @@ function renderOrders() {
       <td>${date.format(new Date(order.created_at))}</td>
       <td><strong>${money.format(Number(order.total_amount))}</strong></td>
       <td><span class="status status-${order.payment_status}">${statusLabels[order.payment_status] || order.payment_status}</span></td>
+      <td class="label-cell"></td>
       <td></td>`;
+
+    const labelCell = row.querySelector(".label-cell");
+    renderLabelActions(order, labelCell);
 
     const select = document.createElement("select");
     select.className = "status-select";
@@ -110,6 +114,92 @@ function renderOrders() {
     select.addEventListener("change", () => updateFulfillment(order.id, select.value, select));
     row.lastElementChild.append(select);
     els.ordersBody.append(row);
+  }
+}
+
+function labelStatusText(order) {
+  const map = {
+    not_created: "BRAK",
+    generating: "TWORZENIE…",
+    generated: "GOTOWA",
+    printed: "WYDRUKOWANA",
+    failed: "BŁĄD",
+    needs_configuration: "KONFIGURACJA",
+  };
+  return map[order.shipping_label_status] || order.shipping_label_status || "BRAK";
+}
+
+function makeAdminButton(text, className = "label-button") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.textContent = text;
+  return button;
+}
+
+function renderLabelActions(order, cell) {
+  cell.replaceChildren();
+
+  const status = document.createElement("span");
+  status.className = `label-status label-status-${order.shipping_label_status || "not_created"}`;
+  status.textContent = labelStatusText(order);
+  cell.append(status);
+
+  if (order.tracking_number) {
+    const tracking = document.createElement("small");
+    tracking.textContent = `TRACKING: ${order.tracking_number}`;
+    cell.append(tracking);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "label-actions";
+
+  if (order.payment_status === "paid" && /inpost/i.test(order.shipping_carrier || "")) {
+    const generate = makeAdminButton(order.shipping_label_path ? "DRUKUJ PONOWNIE" : "UTWÓRZ ETYKIETĘ");
+    generate.addEventListener("click", async () => {
+      generate.disabled = true;
+      generate.textContent = "PRZETWARZANIE…";
+      const { data, error } = await supabase.functions.invoke("inpost-fulfillment", {
+        body: { orderId: order.id, action: order.shipping_label_path ? "reprint" : "generate" },
+      });
+
+      if (error || data?.error) {
+        els.ordersMessage.textContent = data?.error || "NIE UDAŁO SIĘ UTWORZYĆ / WYDRUKOWAĆ ETYKIETY.";
+      } else {
+        els.ordersMessage.textContent = data?.autoPrintConfigured
+          ? "ETYKIETA ZOSTAŁA WYSŁANA DO DRUKARKI."
+          : "ETYKIETA JEST GOTOWA. AUTOMATYCZNA DRUKARKA NIE JEST JESZCZE SKONFIGUROWANA.";
+        if (data?.url && !data?.autoPrintConfigured) window.open(data.url, "_blank", "noopener,noreferrer");
+      }
+      await loadOrders();
+    });
+    actions.append(generate);
+  }
+
+  if (order.shipping_label_path) {
+    const pdf = makeAdminButton("PDF", "label-button label-button-secondary");
+    pdf.addEventListener("click", async () => {
+      pdf.disabled = true;
+      const { data, error } = await supabase.functions.invoke("inpost-fulfillment", {
+        body: { orderId: order.id, action: "download" },
+      });
+      pdf.disabled = false;
+      if (error || !data?.url) {
+        els.ordersMessage.textContent = "NIE UDAŁO SIĘ OTWORZYĆ ETYKIETY.";
+        return;
+      }
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    });
+    actions.append(pdf);
+  }
+
+  if (actions.children.length) cell.append(actions);
+
+  if (order.shipping_label_error) {
+    const err = document.createElement("small");
+    err.className = "label-error";
+    err.textContent = order.shipping_label_error;
+    cell.append(err);
   }
 }
 
