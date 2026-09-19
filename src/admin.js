@@ -424,6 +424,10 @@ function renderProductEditor(product = null) {
       els.newProductButton.disabled = false;
     });
     actions.append(cancel);
+  } else {
+    const remove = makeAdminButton("USUŃ PRODUKT", "delete-product-button");
+    remove.addEventListener("click", () => deleteProduct(draft, remove));
+    actions.append(remove);
   }
   form.append(actions);
 
@@ -551,6 +555,43 @@ async function saveProduct({ product, name, slug, description, price, compareAtP
   if (isNew && productId) {
     document.querySelector(`.product-admin-card form`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+}
+
+async function deleteProduct(product, button) {
+  const confirmed = window.confirm(
+    `Czy na pewno usunąć produkt „${product.name}”?\n\nProdukt i jego warianty znikną ze sklepu. Historia zakończonych zamówień pozostanie zachowana. Tej operacji nie można cofnąć.`,
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = "USUWANIE…";
+  els.productsMessage.textContent = "";
+
+  const { error } = await supabase.rpc("admin_delete_product", { p_product_id: product.id });
+
+  if (error) {
+    console.error(error);
+    if (error.message?.includes("last active product")) {
+      els.productsMessage.textContent = "NIE MOŻNA USUNĄĆ OSTATNIEGO AKTYWNEGO PRODUKTU. NAJPIERW DODAJ LUB AKTYWUJ INNY.";
+    } else if (error.message?.includes("open order")) {
+      els.productsMessage.textContent = "PRODUKT MA OTWARTE ZAMÓWIENIE. NAJPIERW JE ZREALIZUJ LUB ANULUJ.";
+    } else {
+      els.productsMessage.textContent = "NIE UDAŁO SIĘ USUNĄĆ PRODUKTU.";
+    }
+    button.disabled = false;
+    button.textContent = "USUŃ PRODUKT";
+    return;
+  }
+
+  const { data: imageFiles } = await supabase.storage.from("product-images").list(product.id, { limit: 100 });
+  if (imageFiles?.length) {
+    const paths = imageFiles.map((file) => `${product.id}/${file.name}`);
+    const { error: imageError } = await supabase.storage.from("product-images").remove(paths);
+    if (imageError) console.error("product image cleanup", imageError);
+  }
+
+  els.productsMessage.textContent = `PRODUKT ${product.name} ZOSTAŁ USUNIĘTY.`;
+  await loadProducts();
 }
 
 async function setAdminView(view) {
