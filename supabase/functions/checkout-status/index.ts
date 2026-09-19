@@ -42,11 +42,32 @@ Deno.serve(async (request: Request) => {
     );
     const address = session.shipping_details?.address || session.customer_details?.address;
     const paid = session.payment_status === "paid" || session.payment_status === "no_payment_required";
+    const customerEmail = session.customer_details?.email || session.customer_email || null;
+
+    // Hosted Checkout collects the buyer email. Once Stripe confirms the payment,
+    // attach it to the successful charge so Stripe sends its payment receipt.
+    // This keeps confirmation independent from the webhook and is idempotent on refresh.
+    if (paid && customerEmail && typeof session.payment_intent === "string") {
+      try {
+        const paymentIntent = await stripeClient.paymentIntents.retrieve(session.payment_intent, {
+          expand: ["latest_charge"],
+        });
+        const latestCharge = paymentIntent.latest_charge;
+        const charge = typeof latestCharge === "string"
+          ? await stripeClient.charges.retrieve(latestCharge)
+          : latestCharge;
+        if (charge && !charge.receipt_email) {
+          await stripeClient.charges.update(charge.id, { receipt_email: customerEmail });
+        }
+      } catch (receiptError) {
+        console.error("stripe-receipt", receiptError instanceof Error ? receiptError.message : receiptError);
+      }
+    }
 
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .update({
-        customer_email: session.customer_details?.email || session.customer_email || null,
+        customer_email: customerEmail,
         customer_name: session.shipping_details?.name || session.customer_details?.name || null,
         shipping_address_line1: address?.line1 || null,
         shipping_address_line2: address?.line2 || null,
@@ -69,7 +90,7 @@ Deno.serve(async (request: Request) => {
       paymentStatus: session.payment_status,
       totalAmount: Number(order.total_amount),
       currency: order.currency,
-      customerEmail: maskEmail(session.customer_details?.email || session.customer_email),
+      customerEmail: maskEmail(customerEmail),
       shipping: {
         carrier: order.shipping_carrier,
         service: order.shipping_service,
