@@ -425,7 +425,13 @@ footer small { opacity: .55; }
 .product-images-admin { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .product-image-editor { display: grid; gap: .7rem; align-content: start; }
 .product-image-editor > strong, .stock-form h3 { font-size: .62rem; letter-spacing: .12em; }
-.product-image-editor img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #f2f2ef; border: 1px solid #dfdfda; }
+.product-image-preview { position: relative; width: 100%; aspect-ratio: 1; background: #f2f2ef; border: 1px solid #dfdfda; overflow: hidden; }
+.product-image-editor img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.product-image-empty { width: 100%; height: 100%; display: grid; place-items: center; color: var(--muted); font-size: .62rem; font-weight: 800; letter-spacing: .1em; }
+.product-image-empty[hidden], .product-image-editor img[hidden], .image-delete-button[hidden] { display: none; }
+.image-delete-button { position: absolute; top: 10px; right: 10px; z-index: 2; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #d31313; color: #fff; display: grid; place-items: center; padding: 0; font-size: 22px; line-height: 1; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.image-delete-button:hover { background: #a90000; transform: scale(1.04); }
+.image-delete-button:disabled { opacity: .45; cursor: wait; transform: none; }
 .image-upload-button, .save-stock-button { border: 0; min-height: 42px; background: var(--ink); color: var(--white); padding: .65rem 1rem; font-size: .62rem; font-weight: 800; letter-spacing: .08em; cursor: pointer; }
 .image-upload-button:disabled, .save-stock-button:disabled { opacity: .45; cursor: wait; }
 .stock-form { margin-top: 1.7rem; padding-top: 1.2rem; border-top: 1px solid #deded9; }
