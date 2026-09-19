@@ -40,8 +40,9 @@ const els = Object.fromEntries([
   "shippingOptionsStep","shippingQuotes","pickupPicker","pickupSelected","pickupMap","pickupList","checkoutButton",
   "checkoutMessage","sizeGuideToggle","sizeGuide","qtyDown","qtyUp","qtyValue","addToCart","productMessage",
   "frontImage","backImage","cartProductImage","prevImage","nextImage","imageStage","toast", "productName",
-  "productCode", "productDescription", "currentPrice", "comparePrice", "productSwitcher", "announcement",
-  "sizeOptions", "cartProductName",
+  "productCode", "productDescription", "currentPrice", "comparePrice", "announcement",
+  "sizeOptions", "cartProductName", "catalogSection", "catalogGrid", "newsletterSection",
+  "newsletterForm", "newsletterEmail", "newsletterCompany", "newsletterMessage",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let sizeButtons = [...document.querySelectorAll("[data-size]")];
@@ -141,7 +142,10 @@ async function loadCatalog() {
     .select("slug, name, description, price, compare_at_price, currency, size_guide, front_image_url, back_image_url, image_url, product_variants(size, stock, reserved_stock, active)")
     .eq("slug", requestedSlug)
     .single(),
-    supabase.from("products").select("slug, name").order("created_at", { ascending: true }),
+    supabase
+      .from("products")
+      .select("slug, name, price, currency, image_url, front_image_url, back_image_url")
+      .order("created_at", { ascending: true }),
   ]);
 
   if (error || !product) {
@@ -173,19 +177,7 @@ async function loadCatalog() {
   const activeCatalog = catalog || [];
   const productIndex = Math.max(0, activeCatalog.findIndex((item) => item.slug === product.slug));
   els.productCode.textContent = `DELUSIONAL / ${String(productIndex + 1).padStart(3, "0")}`;
-  els.productSwitcher.replaceChildren();
-  if (activeCatalog.length > 1) {
-    const caption = document.createElement("span");
-    caption.textContent = "OTHER PRODUCTS";
-    els.productSwitcher.append(caption);
-    for (const item of activeCatalog) {
-      const link = document.createElement("a");
-      link.href = `./index.html?product=${encodeURIComponent(item.slug)}`;
-      link.textContent = item.name;
-      link.classList.toggle("active", item.slug === product.slug);
-      els.productSwitcher.append(link);
-    }
-  }
+  renderHomepageProducts(activeCatalog);
 
   els.sizeOptions.replaceChildren();
   for (const variant of (product.product_variants || []).filter((item) => item.active)) {
@@ -246,6 +238,47 @@ async function loadCatalog() {
     sizeButtons.forEach((button) => button.classList.toggle("active", button.dataset.size === selectedSize));
   }
   reconcileInventory();
+}
+
+function productImage(item, side) {
+  const classic = item.slug === "delusional-classic-zip-up";
+  if (side === "front") {
+    return item.front_image_url || item.image_url || (classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png");
+  }
+  return item.back_image_url || (classic ? "./images/classic-zip-back.jpg" : productImage(item, "front"));
+}
+
+function renderHomepageProducts(catalog) {
+  const showCatalog = catalog.length > 1;
+  els.catalogSection.hidden = !showCatalog;
+  els.newsletterSection.hidden = showCatalog;
+  els.catalogGrid.replaceChildren();
+
+  if (!showCatalog) return;
+
+  for (const item of catalog) {
+    const link = document.createElement("a");
+    link.className = "catalog-tile";
+    link.href = `./index.html?product=${encodeURIComponent(item.slug)}`;
+    link.setAttribute("aria-label", `${item.name} — ${item.price} ${item.currency}`);
+
+    const front = document.createElement("img");
+    front.className = "catalog-image catalog-image-front";
+    front.src = productImage(item, "front");
+    front.alt = `${item.name} — front`;
+
+    const back = document.createElement("img");
+    back.className = "catalog-image catalog-image-back";
+    back.src = productImage(item, "back");
+    back.alt = `${item.name} — back`;
+
+    const price = document.createElement("span");
+    price.className = "catalog-price";
+    price.textContent = `${Number(item.price).toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${item.currency}`;
+
+    link.append(front, back, price);
+    els.catalogGrid.append(link);
+  }
 }
 
 function showMessage(element, message) {
@@ -671,6 +704,31 @@ els.checkoutButton.addEventListener("click", async () => {
     els.checkoutButton.disabled = false;
     els.checkoutButton.textContent = "CONTINUE TO STRIPE";
   }
+});
+
+els.newsletterForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!els.newsletterForm.reportValidity()) return;
+  if (els.newsletterCompany.value) return;
+
+  const submit = els.newsletterForm.querySelector("button");
+  const email = els.newsletterEmail.value.trim().toLowerCase();
+  submit.disabled = true;
+  els.newsletterMessage.textContent = "JOINING…";
+
+  const { error } = await supabase.from("newsletter_subscribers").insert({ email });
+  const alreadyJoined = error?.code === "23505";
+
+  if (!error || alreadyJoined) {
+    els.newsletterForm.reset();
+    els.newsletterMessage.textContent = alreadyJoined
+      ? "THIS EMAIL IS ALREADY ON THE LIST."
+      : "YOU'RE ON THE LIST. THANK YOU.";
+  } else {
+    console.error(error);
+    els.newsletterMessage.textContent = "COULD NOT JOIN. TRY AGAIN.";
+  }
+  submit.disabled = false;
 });
 
 const observer = new IntersectionObserver((entries) => {

@@ -44,8 +44,6 @@
 
         <div class="product-description" id="productDescription">Heavyweight zip hoodie built around a clean, oversized silhouette.</div>
 
-        <nav class="product-switcher" id="productSwitcher" aria-label="Products"></nav>
-
         <button class="size-guide-toggle handwritten" id="sizeGuideToggle" type="button" aria-expanded="false" aria-controls="sizeGuide">
           SIZE GUIDE <span>+</span>
         </button>
@@ -87,6 +85,28 @@
         <p class="form-message" id="productMessage" role="status"></p>
         <p class="micro-copy">HOVER PRODUCT TO SEE BACK</p>
       </aside>
+    </section>
+
+    <section class="catalog-section" id="catalogSection" aria-label="Products" hidden>
+      <div class="catalog-grid" id="catalogGrid"></div>
+    </section>
+
+    <section class="newsletter-section" id="newsletterSection" hidden>
+      <div class="newsletter-copy">
+        <p class="eyebrow">STAY DELUSIONAL</p>
+        <h2>JOIN THE NEWSLETTER</h2>
+        <p>EARLY ACCESS TO NEW DROPS AND RESTOCKS.</p>
+      </div>
+      <form class="newsletter-form" id="newsletterForm">
+        <label for="newsletterEmail">EMAIL ADDRESS</label>
+        <div>
+          <input id="newsletterEmail" type="email" maxlength="160" autocomplete="email" placeholder="EMAIL@ADDRESS.COM" required />
+          <button type="submit" aria-label="Join newsletter">→</button>
+        </div>
+        <input class="newsletter-honeypot" id="newsletterCompany" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <p class="newsletter-consent">BY SUBSCRIBING, YOU AGREE TO RECEIVE MARKETING EMAILS. YOU CAN UNSUBSCRIBE AT ANY TIME.</p>
+        <p class="form-message" id="newsletterMessage" role="status" aria-live="polite"></p>
+      </form>
     </section>
   </main>
 
