@@ -3,37 +3,51 @@ import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2.116.0/cors";
 
 const headers = { ...corsHeaders, "Content-Type": "application/json" };
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers });
-}
+function json(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers }); }
 
 type ParcelLocker = {
-  code: string;
-  name: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  latitude: number;
-  longitude: number;
+  code: string; name: string; address: string; city: string; postalCode: string;
+  latitude: number; longitude: number; distanceKm?: number;
 };
 
-async function getParcelLockers(city: string): Promise<ParcelLocker[]> {
-  const params = new URLSearchParams({
-    city,
-    type: "parcel_locker",
-    status: "Operating",
-    per_page: "24",
-  });
+function radians(value: number) { return value * Math.PI / 180; }
+function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number) {
+  const earth = 6371;
+  const dLat = radians(bLat - aLat);
+  const dLon = radians(bLon - aLon);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(radians(aLat)) * Math.cos(radians(bLat)) * Math.sin(dLon / 2) ** 2;
+  return earth * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
 
+async function geocodeAddress(addressLine1: string, addressLine2: string, postalCode: string, city: string, country: string) {
+  const q = [addressLine1, addressLine2, postalCode, city, country === "PL" ? "Poland" : "Denmark"].filter(Boolean).join(", ");
   try {
-    const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points?${params}`, {
-      signal: AbortSignal.timeout(5000),
+    const response = await fetch(\`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=\${country.toLowerCase()}&q=\${encodeURIComponent(q)}\`, {
+      signal: AbortSignal.timeout(6500),
+      headers: { Accept: "application/json", "User-Agent": "DelusionalCrewStore/1.0 (shipping address lookup)" },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const first = Array.isArray(data) ? data[0] : null;
+    const latitude = Number(first?.lat);
+    const longitude = Number(first?.lon);
+    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+  } catch (error) {
+    console.error("geocode-address", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+async function getParcelLockers(city: string, origin: { latitude: number; longitude: number } | null): Promise<ParcelLocker[]> {
+  const params = new URLSearchParams({ city, type: "parcel_locker", status: "Operating", per_page: "100" });
+  try {
+    const response = await fetch(\`https://api-shipx-pl.easypack24.net/v1/points?\${params}\`, {
+      signal: AbortSignal.timeout(6500),
       headers: { Accept: "application/json" },
     });
     if (!response.ok) return [];
     const payload = await response.json();
-    return (payload.items || []).flatMap((point: Record<string, unknown>) => {
+    const points: ParcelLocker[] = (payload.items || []).flatMap((point: Record<string, unknown>) => {
       const address = point.address as Record<string, unknown> | undefined;
       const details = point.address_details as Record<string, unknown> | undefined;
       const location = point.location as Record<string, unknown> | undefined;
@@ -43,14 +57,17 @@ async function getParcelLockers(city: string): Promise<ParcelLocker[]> {
       if (!code || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
       return [{
         code,
-        name: String(point.display_name || `InPost Paczkomat ${code}`).slice(0, 120),
+        name: String(point.display_name || \`InPost Paczkomat \${code}\`).slice(0, 120),
         address: String(address?.line1 || "").slice(0, 160),
         city: String(details?.city || city).slice(0, 80),
         postalCode: String(details?.post_code || "").slice(0, 16),
         latitude,
         longitude,
+        distanceKm: origin ? distanceKm(origin.latitude, origin.longitude, latitude, longitude) : undefined,
       }];
     });
+    if (origin) points.sort((a, b) => Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999));
+    return points.slice(0, 24);
   } catch (error) {
     console.error("parcel-lockers", error instanceof Error ? error.message : error);
     return [];
@@ -63,14 +80,23 @@ Deno.serve(async (request: Request) => {
 
   try {
     const payload = await request.json();
+    const name = String(payload.name || "").trim().slice(0, 120);
+    const email = String(payload.email || "").trim().toLowerCase().slice(0, 160);
+    const phone = String(payload.phone || "").trim().slice(0, 24);
     const country = String(payload.country || "").toUpperCase();
+    const addressLine1 = String(payload.addressLine1 || "").trim().slice(0, 160);
+    const addressLine2 = String(payload.addressLine2 || "").trim().slice(0, 160);
     const postalCode = String(payload.postalCode || "").trim().slice(0, 16);
     const city = String(payload.city || "").trim().slice(0, 80);
     const subtotal = Number(payload.subtotal);
 
-    if (!["PL", "DK"].includes(country) || postalCode.length < 3 || city.length < 2 || !Number.isFinite(subtotal) || subtotal < 0 || subtotal > 5000) {
-      return json({ error: "Invalid destination" }, 400);
-    }
+    const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (
+      name.length < 2 || !validEmail || phoneDigits.length < 7 || phoneDigits.length > 15 ||
+      !["PL", "DK"].includes(country) || addressLine1.length < 3 || postalCode.length < 3 || city.length < 2 ||
+      !Number.isFinite(subtotal) || subtotal < 0 || subtotal > 5000
+    ) return json({ error: "Complete all required delivery details" }, 400);
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -84,7 +110,6 @@ Deno.serve(async (request: Request) => {
       .eq("country_code", country)
       .eq("active", true)
       .order("amount", { ascending: true });
-
     if (error) throw error;
 
     const quotes = (data || []).map((method) => ({
@@ -98,8 +123,14 @@ Deno.serve(async (request: Request) => {
       type: method.delivery_type,
     }));
 
-    const parcelLockers = country === "PL" ? await getParcelLockers(city) : [];
-    return json({ destination: { country, postalCode, city }, quotes, parcelLockers });
+    const origin = country === "PL" ? await geocodeAddress(addressLine1, addressLine2, postalCode, city, country) : null;
+    const parcelLockers = country === "PL" ? await getParcelLockers(city, origin) : [];
+
+    return json({
+      destination: { name, email, phone, country, addressLine1, addressLine2, postalCode, city, geocoded: Boolean(origin) },
+      quotes,
+      parcelLockers,
+    });
   } catch (error) {
     console.error("shipping-quotes", error instanceof Error ? error.message : error);
     return json({ error: "Unable to calculate shipping" }, 500);
