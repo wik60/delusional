@@ -205,12 +205,14 @@ function renderQuotes() {
       <b>${quote.amount === 0 ? "FREE" : money.format(quote.amount)}</b>`;
     button.addEventListener("click", () => {
       selectedShipping = quote;
-      selectedPickup = null;
+      selectedPickup = quote.type === "parcel_locker" ? (parcelLockers[0] || null) : null;
       renderQuotes();
       renderPickupPicker();
       renderCart();
       showMessage(els.shippingMessage, quote.type === "parcel_locker"
-        ? "SELECT A PARCEL LOCKER BELOW."
+        ? (selectedPickup
+          ? `NEAREST PARCEL LOCKER PROPOSED: ${selectedPickup.code}. YOU CAN CHANGE IT BELOW.`
+          : "NO PARCEL LOCKER FOUND NEAR THIS ADDRESS.")
         : `${quote.carrier.toUpperCase()} SELECTED.`);
     });
     els.shippingQuotes.append(button);
@@ -363,7 +365,12 @@ els.shippingForm.addEventListener("submit", async (event) => {
   try {
     const { data, error } = await supabase.functions.invoke("shipping-quotes", {
       body: {
+        name: els.shippingName.value.trim(),
+        email: els.shippingEmail.value.trim(),
+        phone: els.shippingPhone.value.trim(),
         country: els.shippingCountry.value,
+        addressLine1: els.shippingAddress1.value.trim(),
+        addressLine2: els.shippingAddress2.value.trim(),
         city: els.shippingCity.value.trim(),
         postalCode: els.shippingPostal.value.trim(),
         subtotal: PRODUCT.price * cart.quantity,
@@ -375,7 +382,12 @@ els.shippingForm.addEventListener("submit", async (event) => {
     if (!quotes.length) throw new Error("No delivery options");
     els.shippingOptionsStep.hidden = false;
     renderQuotes();
-    showMessage(els.shippingMessage, "SELECT A DELIVERY METHOD.");
+    showMessage(
+      els.shippingMessage,
+      parcelLockers.length
+        ? `ADDRESS VERIFIED. NEAREST LOCKER: ${parcelLockers[0].code}${Number.isFinite(Number(parcelLockers[0].distanceKm)) ? ` · ${Number(parcelLockers[0].distanceKm).toFixed(1)} KM` : ""}.`
+        : "ADDRESS VERIFIED. SELECT A DELIVERY METHOD."
+    );
   } catch (error) {
     console.error(error);
     showMessage(els.shippingMessage, "DELIVERY OPTIONS COULD NOT BE LOADED. TRY AGAIN.");
@@ -401,7 +413,14 @@ els.checkoutButton.addEventListener("click", async () => {
         productSlug: PRODUCT.slug,
         size: cart.size,
         quantity: cart.quantity,
+        customerName: els.shippingName.value.trim(),
+        customerEmail: els.shippingEmail.value.trim(),
+        customerPhone: els.shippingPhone.value.trim(),
         shippingCountry: els.shippingCountry.value,
+        shippingAddressLine1: els.shippingAddress1.value.trim(),
+        shippingAddressLine2: els.shippingAddress2.value.trim(),
+        shippingCity: els.shippingCity.value.trim(),
+        shippingPostalCode: els.shippingPostal.value.trim(),
         shippingMethodId: selectedShipping.id,
         pickupPointCode: selectedPickup?.code || null,
       },
