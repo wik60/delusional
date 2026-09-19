@@ -159,9 +159,9 @@ Deno.serve(async (request: Request) => {
         shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
       }),
       line_items: lineItems,
-      locale: "pl",
+      locale: "en",
       custom_text: {
-        submit: { message: "Po płatności otrzymasz potwierdzenie zamówienia na podany adres e-mail." },
+        submit: { message: "After payment, a confirmation will be sent to the email address used at checkout." },
       },
       metadata: {
         order_id: order.id,
