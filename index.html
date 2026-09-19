@@ -129,10 +129,15 @@
       <section class="checkout-step">
         <div class="step-heading"><span>01</span><h3>DELIVERY DETAILS</h3></div>
         <form class="shipping-form" id="shippingForm">
-          <label><span>COUNTRY</span><select id="shippingCountry"><option value="PL">POLAND</option><option value="DK">DENMARK</option></select></label>
-          <label><span>CITY</span><input id="shippingCity" required placeholder="WARSAW" autocomplete="address-level2" /></label>
-          <label><span>POSTAL CODE</span><input id="shippingPostal" required placeholder="00-001" autocomplete="postal-code" /></label>
-          <button type="submit">CALCULATE DELIVERY</button>
+          <label class="field-wide"><span>FULL NAME</span><input id="shippingName" required minlength="2" maxlength="120" placeholder="JAN KOWALSKI" autocomplete="name" /></label>
+          <label><span>EMAIL</span><input id="shippingEmail" required type="email" maxlength="160" placeholder="JAN@EMAIL.COM" autocomplete="email" /></label>
+          <label><span>PHONE NUMBER</span><input id="shippingPhone" required type="tel" minlength="7" maxlength="24" placeholder="+48 500 000 000" autocomplete="tel" /></label>
+          <label class="field-wide"><span>COUNTRY</span><select id="shippingCountry"><option value="PL">POLAND</option><option value="DK">DENMARK</option></select></label>
+          <label class="field-wide"><span>STREET + HOUSE NUMBER</span><input id="shippingAddress1" required minlength="3" maxlength="160" placeholder="MARSZAŁKOWSKA 10" autocomplete="address-line1" /></label>
+          <label class="field-wide"><span>APARTMENT / ADDRESS LINE 2 <em>OPTIONAL</em></span><input id="shippingAddress2" maxlength="160" placeholder="APT. 12" autocomplete="address-line2" /></label>
+          <label><span>CITY</span><input id="shippingCity" required minlength="2" maxlength="80" placeholder="WARSAW" autocomplete="address-level2" /></label>
+          <label><span>POSTAL CODE</span><input id="shippingPostal" required minlength="3" maxlength="16" placeholder="00-001" autocomplete="postal-code" /></label>
+          <button type="submit">FIND DELIVERY OPTIONS</button>
         </form>
         <p class="form-message" id="shippingMessage" role="status"></p>
       </section>
@@ -143,7 +148,8 @@
       </section>
 
       <section class="checkout-step pickup-step" id="pickupPicker" hidden>
-        <div class="step-heading"><span>03</span><h3>NEAREST PARCEL LOCKER</h3></div>\n        <p class="pickup-hint">WE RECOMMEND THE CLOSEST AVAILABLE LOCKER TO YOUR DELIVERY ADDRESS. YOU CAN CHOOSE ANOTHER ONE BELOW.</p>
+        <div class="step-heading"><span>03</span><h3>NEAREST PARCEL LOCKER</h3></div>
+        <p class="pickup-hint">WE RECOMMEND THE CLOSEST AVAILABLE LOCKER TO YOUR DELIVERY ADDRESS. YOU CAN CHOOSE ANOTHER ONE BELOW.</p>
         <strong class="pickup-selected" id="pickupSelected">NOT SELECTED</strong>
         <div class="pickup-map" id="pickupMap"></div>
         <div class="pickup-list" id="pickupList"></div>
