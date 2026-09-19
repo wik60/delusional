@@ -22,8 +22,8 @@ main{min-height:calc(100vh - 142px)}
 .price-row strong{font-size:13px}.price-row s{opacity:.4}
 .product-description{font-size:10px;line-height:1.7;max-width:240px}
 .product-description p{margin:0 0 16px}
-.handwritten{margin-top:12px;color:var(--red)!important;font-family:"Comic Sans MS","Bradley Hand",cursive!important;font-size:28px!important;font-weight:900!important;transform:rotate(-3deg);letter-spacing:-.06em}
-.size-guide-toggle{border:0;background:transparent;padding:0;cursor:pointer}
+.handwritten{margin-top:12px;color:#fff!important;font-family:Arial,Helvetica,sans-serif!important;font-size:12px!important;font-weight:800!important;transform:none;letter-spacing:.08em}
+.size-guide-toggle{border:0;background:#050505;color:#fff;padding:12px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:12px;min-width:150px;justify-content:space-between}
 .size-guide{margin-top:12px;width:250px;border-top:1px solid var(--ink);padding-top:8px;font-size:10px}
 .size-guide div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #ccc}
 .size-guide small{display:block;margin-top:7px;font-size:8px;letter-spacing:.11em}
