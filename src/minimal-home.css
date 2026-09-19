@@ -35,9 +35,9 @@ main{min-height:calc(100vh - 142px)}
 .product-shot.is-active{opacity:1;visibility:visible;transform:none}
 .image-nav{position:absolute;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.82);width:42px;height:54px;display:grid;place-items:center;font-size:38px;line-height:1;font-weight:300;cursor:pointer;z-index:3;padding:0;transition:background .18s ease,transform .18s ease}
 .image-nav-left{left:12px}.image-nav-right{right:12px}.image-nav:hover{background:#fff;transform:translateY(-50%) scale(1.05)}
-.view-switch{display:flex;gap:14px;margin-top:-8px}
-.view-switch button{border:0;background:transparent;font-size:9px;padding:4px 0;opacity:.35;cursor:default;pointer-events:none;border-bottom:1px solid transparent}
-.view-switch button.active{opacity:1;border-bottom-color:#000}
+.view-dots{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;min-height:10px}
+.view-dot{display:block;width:8px;height:8px;border-radius:50%;background:#c7c7c7;transition:background .18s ease,transform .18s ease}
+.view-dot.active{background:#111;transform:scale(1.08)}
 .product-side-right{justify-self:end;width:min(260px,100%)}
 .size-options{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:24px}
 .size-options button{width:48px;height:38px;border:1px solid #a9a9a5;background:transparent;cursor:pointer;font-size:11px}
