@@ -34,7 +34,7 @@ main{min-height:calc(100vh - 142px)}
 .product-shot{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;visibility:hidden;pointer-events:none;transform:none;transition:none;mix-blend-mode:normal;filter:none}
 .product-shot.is-active{opacity:1;visibility:visible;transform:none}
 .image-nav{position:absolute;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.82);width:42px;height:54px;display:grid;place-items:center;font-size:38px;line-height:1;font-weight:300;cursor:pointer;z-index:3;padding:0;transition:background .18s ease,transform .18s ease}
-.image-nav-left{left:12px}.image-nav-right{right:12px}.image-nav:hover{background:#fff;transform:translateY(-50%) scale(1.05)}
+.image-nav-left{left:12px}.image-nav-right{right:12px}.image-nav:hover{background:#fff;transform:translateY(-50%) scale(1.05)}.image-nav[hidden]{display:none}
 .view-dots{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;min-height:10px}
 .view-dot{display:block;width:8px;height:8px;border-radius:50%;background:#c7c7c7;transition:background .18s ease,transform .18s ease}
 .view-dot.active{background:#111;transform:scale(1.08)}
