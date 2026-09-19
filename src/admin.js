@@ -174,8 +174,15 @@ async function deleteOrder(order, button) {
 
 function imageUrl(product, side) {
   const classic = product.slug === "delusional-classic-zip-up";
-  if (side === "front") return product.front_image_url || product.image_url || (classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png");
-  return product.back_image_url || (classic ? "./images/classic-zip-back.jpg" : "./images/brand-mark.png");
+
+  if (side === "front") {
+    if (product.front_image_url !== null && product.front_image_url !== undefined) return product.front_image_url;
+    if (product.image_url !== null && product.image_url !== undefined) return product.image_url;
+    return classic ? "./images/classic-zip-front.jpg" : "";
+  }
+
+  if (product.back_image_url !== null && product.back_image_url !== undefined) return product.back_image_url;
+  return classic ? "./images/classic-zip-back.jpg" : "";
 }
 
 function productImageEditor(product, side, label) {
@@ -184,9 +191,28 @@ function productImageEditor(product, side, label) {
 
   const heading = document.createElement("strong");
   heading.textContent = label;
+
+  const previewWrap = document.createElement("div");
+  previewWrap.className = "product-image-preview";
+
   const preview = document.createElement("img");
-  preview.src = imageUrl(product, side);
+  const currentUrl = imageUrl(product, side);
   preview.alt = `${product.name} — ${label.toLowerCase()}`;
+  if (currentUrl) preview.src = currentUrl;
+  else preview.hidden = true;
+
+  const empty = document.createElement("div");
+  empty.className = "product-image-empty";
+  empty.textContent = "BRAK ZDJĘCIA";
+  empty.hidden = Boolean(currentUrl);
+
+  const deleteButton = makeAdminButton("×", "image-delete-button");
+  deleteButton.setAttribute("aria-label", `Usuń zdjęcie: ${label.toLowerCase()}`);
+  deleteButton.title = "Usuń zdjęcie";
+  deleteButton.hidden = !currentUrl;
+  deleteButton.addEventListener("click", () => deleteProductImage(product, side, deleteButton));
+
+  previewWrap.append(preview, empty, deleteButton);
 
   const input = document.createElement("input");
   input.type = "file";
@@ -201,7 +227,7 @@ function productImageEditor(product, side, label) {
     input.value = "";
   });
 
-  editor.append(heading, preview, input, button);
+  editor.append(heading, previewWrap, input, button);
   return editor;
 }
 
@@ -462,6 +488,53 @@ function renderProductEditor(product = null) {
 
   card.append(form);
   return card;
+}
+
+async function deleteProductImage(product, side, button) {
+  const sideLabel = side === "front" ? "przodu" : "tyłu";
+  const confirmed = window.confirm(
+    `Czy na pewno chcesz usunąć zdjęcie ${sideLabel} produktu „${product.name}”? Tej operacji nie można cofnąć.`,
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  els.productsMessage.textContent = "";
+
+  const column = side === "front" ? "front_image_url" : "back_image_url";
+  const { error: updateError } = await supabase
+    .from("products")
+    .update({ [column]: "" })
+    .eq("id", product.id);
+
+  if (updateError) {
+    console.error(updateError);
+    els.productsMessage.textContent = "NIE UDAŁO SIĘ USUNĄĆ ZDJĘCIA.";
+    button.disabled = false;
+    return;
+  }
+
+  const { data: imageFiles, error: listError } = await supabase.storage
+    .from("product-images")
+    .list(product.id, { limit: 100 });
+
+  if (!listError && imageFiles?.length) {
+    const paths = imageFiles
+      .filter((file) => file.name.startsWith(`${side}-`))
+      .map((file) => `${product.id}/${file.name}`);
+
+    if (paths.length) {
+      const { error: removeError } = await supabase.storage
+        .from("product-images")
+        .remove(paths);
+      if (removeError) console.error("product image cleanup", removeError);
+    }
+  } else if (listError) {
+    console.error("product image listing", listError);
+  }
+
+  els.productsMessage.textContent =
+    `${side === "front" ? "ZDJĘCIE PRZODU" : "ZDJĘCIE TYŁU"} ZOSTAŁO USUNIĘTE.`;
+  await loadProducts();
 }
 
 async function uploadProductImage(product, side, file, button) {
