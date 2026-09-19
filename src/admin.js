@@ -46,7 +46,7 @@ async function loadOrders() {
   els.ordersMessage.textContent = "ŁADOWANIE…";
   const { data: rows, error } = await supabase
     .from("orders")
-    .select("id, order_number, customer_email, customer_name, created_at, total_amount, currency, payment_status, fulfillment_status, shipping_city, shipping_country, shipping_carrier, shipping_service, pickup_point_code, pickup_point_address, order_items(product_name, size, quantity, unit_price)")
+    .select("id, order_number, customer_email, customer_name, customer_phone, created_at, total_amount, currency, payment_status, fulfillment_status, shipping_address_line1, shipping_address_line2, shipping_postal_code, shipping_city, shipping_country, shipping_carrier, shipping_service, pickup_point_code, pickup_point_address, order_items(product_name, size, quantity, unit_price)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -92,7 +92,7 @@ function renderOrders() {
       : "Dostawa nieprzypisana";
     row.innerHTML = `
       <td><strong>${escapeHtml(order.order_number)}</strong><small>${escapeHtml(itemSummary)}<br>${escapeHtml(deliverySummary)}</small></td>
-      <td>${escapeHtml(order.customer_name || "—")}<small>${escapeHtml(order.customer_email || "—")}</small></td>
+      <td>${escapeHtml(order.customer_name || "—")}<small>${escapeHtml(order.customer_email || "—")}<br>${escapeHtml(order.customer_phone || "—")}</small></td>
       <td>${date.format(new Date(order.created_at))}</td>
       <td><strong>${money.format(Number(order.total_amount))}</strong></td>
       <td><span class="status status-${order.payment_status}">${statusLabels[order.payment_status] || order.payment_status}</span></td>
