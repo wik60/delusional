@@ -40,11 +40,27 @@ Deno.serve(async (request: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
+    const address = session.shipping_details?.address || session.customer_details?.address;
+    const paid = session.payment_status === "paid" || session.payment_status === "no_payment_required";
+
     const { data: order, error } = await supabaseAdmin
       .from("orders")
-      .select("order_number, total_amount, currency, payment_status, shipping_carrier, shipping_service, pickup_point_code, pickup_point_name, pickup_point_address, order_items(product_name, size, quantity)")
+      .update({
+        customer_email: session.customer_details?.email || session.customer_email || null,
+        customer_name: session.shipping_details?.name || session.customer_details?.name || null,
+        shipping_address_line1: address?.line1 || null,
+        shipping_address_line2: address?.line2 || null,
+        shipping_postal_code: address?.postal_code || null,
+        shipping_city: address?.city || null,
+        shipping_country: address?.country || null,
+        total_amount: (session.amount_total || 0) / 100,
+        payment_status: paid ? "paid" : (session.payment_status || "pending"),
+        fulfillment_status: paid ? "paid" : "pending",
+        stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      })
       .eq("id", orderId)
       .eq("stripe_checkout_session_id", session.id)
+      .select("order_number, total_amount, currency, payment_status, shipping_carrier, shipping_service, pickup_point_code, pickup_point_name, pickup_point_address, order_items(product_name, size, quantity)")
       .single();
     if (error || !order) return json({ error: "Order not found" }, 404);
 
