@@ -434,6 +434,8 @@ footer small { opacity: .55; }
 .image-delete-button:disabled { opacity: .45; cursor: wait; transform: none; }
 .image-upload-button, .save-stock-button { border: 0; min-height: 42px; background: var(--ink); color: var(--white); padding: .65rem 1rem; font-size: .62rem; font-weight: 800; letter-spacing: .08em; cursor: pointer; }
 .image-upload-button:disabled, .save-stock-button:disabled { opacity: .45; cursor: wait; }
+.add-product-image-button { margin-top: 1rem; width: fit-content; min-width: 180px; }
+.product-images-empty { grid-column: 1 / -1; margin: 0; padding: 2rem 1rem; border: 1px dashed #c8c8c3; color: var(--muted); text-align: center; font-size: .62rem; font-weight: 800; letter-spacing: .08em; }
 .stock-form { margin-top: 1.7rem; padding-top: 1.2rem; border-top: 1px solid #deded9; }
 .stock-form h3 { margin: 0 0 1rem; }
 .stock-rows { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: .65rem; }
