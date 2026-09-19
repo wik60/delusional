@@ -53,6 +53,7 @@ let quotes = [];
 let parcelLockers = [];
 let selectedShipping = null;
 let selectedPickup = null;
+let deliveryOrigin = null;
 let pickupMap = null;
 let pickupMarkers = null;
 
@@ -95,6 +96,7 @@ function showToast(message) {
 function resetDelivery() {
   selectedShipping = null;
   selectedPickup = null;
+  deliveryOrigin = null;
   quotes = [];
   parcelLockers = [];
   els.shippingQuotes.replaceChildren();
@@ -221,7 +223,7 @@ function renderQuotes() {
 
 function initPickupMap() {
   if (pickupMap) return;
-  pickupMap = L.map(els.pickupMap, { scrollWheelZoom: false, zoomControl: true }).setView([52.2297, 21.0122], 11);
+  pickupMap = L.map(els.pickupMap, { scrollWheelZoom: false, zoomControl: true, preferCanvas: true }).setView([52.2297, 21.0122], 11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: "© OpenStreetMap",
@@ -240,6 +242,7 @@ function choosePickup(point) {
 function renderPickupPicker() {
   const needsPickup = selectedShipping?.type === "parcel_locker";
   els.pickupPicker.hidden = !needsPickup;
+
   if (!needsPickup) {
     selectedPickup = null;
     renderCart();
@@ -247,39 +250,78 @@ function renderPickupPicker() {
   }
 
   els.pickupList.replaceChildren();
+
   if (!parcelLockers.length) {
-    els.pickupList.innerHTML = '<p class="form-message">NO PARCEL LOCKERS FOUND. CHECK THE CITY AND POSTAL CODE.</p>';
+    els.pickupSelected.textContent = "NO ACTIVE PARCEL LOCKERS FOUND";
+    els.pickupList.innerHTML = '<p class="form-message">NO PARCEL LOCKERS FOUND. CHECK THE ADDRESS OR CITY.</p>';
     return;
   }
+
+  if (!selectedPickup) selectedPickup = parcelLockers[0];
+
+  const selectedDistance = Number.isFinite(Number(selectedPickup.distanceKm))
+    ? ` · ${Number(selectedPickup.distanceKm).toFixed(2)} KM`
+    : "";
+  els.pickupSelected.textContent =
+    `SELECTED: ${selectedPickup.code} · ${selectedPickup.address}${selectedDistance} · ${parcelLockers.length} LOCKERS LOADED`;
 
   for (const point of parcelLockers) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "pickup-point";
     button.classList.toggle("selected", selectedPickup?.code === point.code);
-    const distance = Number.isFinite(Number(point.distanceKm)) ? ` · ${Number(point.distanceKm).toFixed(1)} KM` : "";
+
+    const distance = Number.isFinite(Number(point.distanceKm))
+      ? ` · ${Number(point.distanceKm).toFixed(2)} KM`
+      : "";
     const nearest = parcelLockers[0]?.code === point.code ? " · NEAREST" : "";
-    button.innerHTML = `<span><strong>${escapeHtml(point.code)}${nearest}</strong><br>${escapeHtml(point.address)}, ${escapeHtml(point.postalCode)} ${escapeHtml(point.city)}${distance}</span><b>${selectedPickup?.code === point.code ? "SELECTED" : "SELECT"}</b>`;
+
+    button.innerHTML =
+      `<span><strong>${escapeHtml(point.code)}${nearest}</strong><br>${escapeHtml(point.address)}, ${escapeHtml(point.postalCode)} ${escapeHtml(point.city)}${distance}</span><b>${selectedPickup?.code === point.code ? "SELECTED" : "SELECT"}</b>`;
+
     button.addEventListener("click", () => choosePickup(point));
     els.pickupList.append(button);
   }
 
   initPickupMap();
   pickupMarkers.clearLayers();
-  const bounds = [];
+
+  if (deliveryOrigin) {
+    L.circleMarker([deliveryOrigin.latitude, deliveryOrigin.longitude], {
+      radius: 7,
+      color: "#111",
+      weight: 3,
+      fillColor: "#fff",
+      fillOpacity: 1,
+    }).addTo(pickupMarkers).bindTooltip("DELIVERY ADDRESS");
+  }
+
+  const allBounds = [];
   for (const point of parcelLockers) {
+    const isSelected = selectedPickup?.code === point.code;
+    const isNearest = parcelLockers[0]?.code === point.code;
+
     const marker = L.circleMarker([point.latitude, point.longitude], {
-      radius: selectedPickup?.code === point.code ? 9 : 7,
+      radius: isSelected ? 8 : (isNearest ? 7 : 4),
       color: "#000",
-      weight: 2,
-      fillColor: selectedPickup?.code === point.code ? "#000" : "#fff",
+      weight: isSelected ? 3 : 1,
+      fillColor: isSelected ? "#000" : "#fff",
       fillOpacity: 1,
     }).addTo(pickupMarkers);
-    marker.bindTooltip(`${escapeHtml(point.code)} · ${escapeHtml(point.address)}`);
+
+    marker.bindTooltip(
+      `${escapeHtml(point.code)} · ${escapeHtml(point.address)}${Number.isFinite(Number(point.distanceKm)) ? ` · ${Number(point.distanceKm).toFixed(2)} KM` : ""}`
+    );
     marker.on("click", () => choosePickup(point));
-    bounds.push([point.latitude, point.longitude]);
+    allBounds.push([point.latitude, point.longitude]);
   }
-  if (bounds.length) pickupMap.fitBounds(bounds, { padding: [18,18], maxZoom: 13 });
+
+  if (deliveryOrigin) {
+    pickupMap.setView([deliveryOrigin.latitude, deliveryOrigin.longitude], 14);
+  } else if (allBounds.length) {
+    pickupMap.fitBounds(allBounds, { padding: [18, 18], maxZoom: 13 });
+  }
+
   setTimeout(() => pickupMap.invalidateSize(), 80);
 }
 
@@ -379,13 +421,16 @@ els.shippingForm.addEventListener("submit", async (event) => {
     if (error) throw error;
     quotes = data?.quotes || [];
     parcelLockers = data?.parcelLockers || [];
+    deliveryOrigin = Number.isFinite(Number(data?.destination?.latitude)) && Number.isFinite(Number(data?.destination?.longitude))
+      ? { latitude: Number(data.destination.latitude), longitude: Number(data.destination.longitude) }
+      : null;
     if (!quotes.length) throw new Error("No delivery options");
     els.shippingOptionsStep.hidden = false;
     renderQuotes();
     showMessage(
       els.shippingMessage,
       parcelLockers.length
-        ? `ADDRESS VERIFIED. NEAREST LOCKER: ${parcelLockers[0].code}${Number.isFinite(Number(parcelLockers[0].distanceKm)) ? ` · ${Number(parcelLockers[0].distanceKm).toFixed(1)} KM` : ""}.`
+        ? `ADDRESS VERIFIED. ${parcelLockers.length} ACTIVE LOCKERS LOADED. NEAREST: ${parcelLockers[0].code}${Number.isFinite(Number(parcelLockers[0].distanceKm)) ? ` · ${Number(parcelLockers[0].distanceKm).toFixed(2)} KM` : ""}.`
         : "ADDRESS VERIFIED. SELECT A DELIVERY METHOD."
     );
   } catch (error) {
