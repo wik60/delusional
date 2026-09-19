@@ -22,7 +22,7 @@ function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number) {
 async function geocodeAddress(addressLine1: string, addressLine2: string, postalCode: string, city: string, country: string) {
   const q = [addressLine1, addressLine2, postalCode, city, country === "PL" ? "Poland" : "Denmark"].filter(Boolean).join(", ");
   try {
-    const response = await fetch(\`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=\${country.toLowerCase()}&q=\${encodeURIComponent(q)}\`, {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=${country.toLowerCase()}&q=${encodeURIComponent(q)}`, {
       signal: AbortSignal.timeout(6500),
       headers: { Accept: "application/json", "User-Agent": "DelusionalCrewStore/1.0 (shipping address lookup)" },
     });
@@ -41,7 +41,7 @@ async function geocodeAddress(addressLine1: string, addressLine2: string, postal
 async function getParcelLockers(city: string, origin: { latitude: number; longitude: number } | null): Promise<ParcelLocker[]> {
   const params = new URLSearchParams({ city, type: "parcel_locker", status: "Operating", per_page: "100" });
   try {
-    const response = await fetch(\`https://api-shipx-pl.easypack24.net/v1/points?\${params}\`, {
+    const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points?${params}`, {
       signal: AbortSignal.timeout(6500),
       headers: { Accept: "application/json" },
     });
@@ -57,7 +57,7 @@ async function getParcelLockers(city: string, origin: { latitude: number; longit
       if (!code || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
       return [{
         code,
-        name: String(point.display_name || \`InPost Paczkomat \${code}\`).slice(0, 120),
+        name: String(point.display_name || `InPost Paczkomat ${code}`).slice(0, 120),
         address: String(address?.line1 || "").slice(0, 160),
         city: String(details?.city || city).slice(0, 80),
         postalCode: String(details?.post_code || "").slice(0, 16),
