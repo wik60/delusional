@@ -207,13 +207,27 @@ async function loadCatalog() {
   }
   els.sizeGuideToggle.hidden = sizeGuide.length === 0;
 
-  const classic = product.slug === "delusional-classic-zip-up";
-  const front = product.front_image_url || product.image_url || (classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png");
-  const back = product.back_image_url || (classic ? "./images/classic-zip-back.jpg" : front);
-  els.frontImage.src = front;
-  els.cartProductImage.src = front;
-  els.backImage.src = back;
+  const front = productImage(product, "front");
+  const back = productImage(product, "back");
+  const cartImage = front || back || "./images/brand-mark.png";
 
+  if (front) {
+    els.frontImage.hidden = false;
+    els.frontImage.src = front;
+  } else {
+    els.frontImage.hidden = true;
+    els.frontImage.removeAttribute("src");
+  }
+
+  if (back) {
+    els.backImage.hidden = false;
+    els.backImage.src = back;
+  } else {
+    els.backImage.hidden = true;
+    els.backImage.removeAttribute("src");
+  }
+
+  els.cartProductImage.src = cartImage;
   els.frontImage.alt = `${product.name} — front`;
   els.backImage.alt = `${product.name} — back`;
   els.cartProductImage.alt = product.name;
@@ -242,10 +256,15 @@ async function loadCatalog() {
 
 function productImage(item, side) {
   const classic = item.slug === "delusional-classic-zip-up";
+
   if (side === "front") {
-    return item.front_image_url || item.image_url || (classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png");
+    if (item.front_image_url !== null && item.front_image_url !== undefined) return item.front_image_url;
+    if (item.image_url !== null && item.image_url !== undefined) return item.image_url;
+    return classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png";
   }
-  return item.back_image_url || (classic ? "./images/classic-zip-back.jpg" : productImage(item, "front"));
+
+  if (item.back_image_url !== null && item.back_image_url !== undefined) return item.back_image_url;
+  return classic ? "./images/classic-zip-back.jpg" : "";
 }
 
 function renderHomepageProducts(catalog) {
@@ -262,14 +281,18 @@ function renderHomepageProducts(catalog) {
     link.href = `./index.html?product=${encodeURIComponent(item.slug)}`;
     link.setAttribute("aria-label", `${item.name} — ${item.price} ${item.currency}`);
 
+    const frontUrl = productImage(item, "front");
+    const backUrl = productImage(item, "back");
+    const primaryUrl = frontUrl || backUrl || "./images/brand-mark.png";
+
     const front = document.createElement("img");
     front.className = "catalog-image catalog-image-front";
-    front.src = productImage(item, "front");
+    front.src = primaryUrl;
     front.alt = `${item.name} — front`;
 
     const back = document.createElement("img");
     back.className = "catalog-image catalog-image-back";
-    back.src = productImage(item, "back");
+    back.src = backUrl || primaryUrl;
     back.alt = `${item.name} — back`;
 
     const price = document.createElement("span");
@@ -349,13 +372,16 @@ function closeCart() {
 }
 
 function getProductShots() {
-  return [...els.imageStage.querySelectorAll(".product-shot")];
+  return [...els.imageStage.querySelectorAll(".product-shot")]
+    .filter((shot) => !shot.hidden && Boolean(shot.getAttribute("src")));
 }
 
 function renderImageDots() {
   if (!els.viewDots) return;
   const shots = getProductShots();
   els.viewDots.replaceChildren();
+  els.prevImage.hidden = shots.length <= 1;
+  els.nextImage.hidden = shots.length <= 1;
 
   shots.forEach((_, index) => {
     const dot = document.createElement("span");
@@ -368,7 +394,11 @@ function renderImageDots() {
 
 function setImage(index) {
   const shots = getProductShots();
-  if (!shots.length) return;
+  if (!shots.length) {
+    activeImageIndex = 0;
+    renderImageDots();
+    return;
+  }
 
   activeImageIndex = ((index % shots.length) + shots.length) % shots.length;
 
