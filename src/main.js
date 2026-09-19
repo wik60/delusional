@@ -255,7 +255,9 @@ function renderPickupPicker() {
     button.type = "button";
     button.className = "pickup-point";
     button.classList.toggle("selected", selectedPickup?.code === point.code);
-    const distance = Number.isFinite(Number(point.distanceKm)) ? ` · ${Number(point.distanceKm).toFixed(1)} KM` : "";\n    const nearest = parcelLockers[0]?.code === point.code ? " · NEAREST" : "";\n    button.innerHTML = `<span><strong>${escapeHtml(point.code)}${nearest}</strong><br>${escapeHtml(point.address)}, ${escapeHtml(point.postalCode)} ${escapeHtml(point.city)}${distance}</span><b>${selectedPickup?.code === point.code ? "SELECTED" : "SELECT"}</b>`;
+    const distance = Number.isFinite(Number(point.distanceKm)) ? ` · ${Number(point.distanceKm).toFixed(1)} KM` : "";
+    const nearest = parcelLockers[0]?.code === point.code ? " · NEAREST" : "";
+    button.innerHTML = `<span><strong>${escapeHtml(point.code)}${nearest}</strong><br>${escapeHtml(point.address)}, ${escapeHtml(point.postalCode)} ${escapeHtml(point.city)}${distance}</span><b>${selectedPickup?.code === point.code ? "SELECTED" : "SELECT"}</b>`;
     button.addEventListener("click", () => choosePickup(point));
     els.pickupList.append(button);
   }
