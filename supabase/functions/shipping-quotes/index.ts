@@ -19,8 +19,10 @@ function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number) {
   return earth * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-async function geocodeAddress(addressLine1: string, addressLine2: string, postalCode: string, city: string, country: string) {
-  const q = [addressLine1, addressLine2, postalCode, city, country === "PL" ? "Poland" : "Denmark"].filter(Boolean).join(", ");
+async function geocodeAddress(addressLine1: string, postalCode: string, city: string, country: string) {
+  // Apartment / unit numbers must not influence geocoding. They can cause a valid
+  // street address to resolve incorrectly or fail entirely.
+  const q = [addressLine1, postalCode, city, country === "PL" ? "Poland" : "Denmark"].filter(Boolean).join(", ");
   try {
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=${country.toLowerCase()}&q=${encodeURIComponent(q)}`, {
       signal: AbortSignal.timeout(6500),
@@ -38,15 +40,40 @@ async function geocodeAddress(addressLine1: string, addressLine2: string, postal
   }
 }
 
-async function getParcelLockers(city: string, origin: { latitude: number; longitude: number } | null): Promise<ParcelLocker[]> {
-  const params = new URLSearchParams({ city, type: "parcel_locker", status: "Operating", per_page: "100" });
+async function getParcelLockers(
+  city: string,
+  postalCode: string,
+  origin: { latitude: number; longitude: number } | null,
+): Promise<ParcelLocker[]> {
+  // InPost's city filter is not proximity-aware and Warsaw has far more points than
+  // a single page. Querying the first 100 by city could therefore omit a locker
+  // literally next door. Use InPost's native nearest-points query instead.
+  const params = new URLSearchParams({
+    type: "parcel_locker",
+    status: "Operating",
+    sort_by: "distance_to_relative_point",
+    sort_order: "asc",
+    limit: "50",
+    max_distance: "10000",
+  });
+
+  if (origin) {
+    params.set("relative_point", `${origin.latitude},${origin.longitude}`);
+  } else {
+    // If street geocoding ever fails, the postal code still gives InPost a local
+    // reference point instead of falling back to an arbitrary city-wide page.
+    params.set("relative_post_code", postalCode);
+  }
+
   try {
     const response = await fetch(`https://api-shipx-pl.easypack24.net/v1/points?${params}`, {
       signal: AbortSignal.timeout(6500),
       headers: { Accept: "application/json" },
     });
     if (!response.ok) return [];
+
     const payload = await response.json();
+    const seen = new Set<string>();
     const points: ParcelLocker[] = (payload.items || []).flatMap((point: Record<string, unknown>) => {
       const address = point.address as Record<string, unknown> | undefined;
       const details = point.address_details as Record<string, unknown> | undefined;
@@ -54,7 +81,10 @@ async function getParcelLockers(city: string, origin: { latitude: number; longit
       const code = String(point.name || "").slice(0, 32);
       const latitude = Number(location?.latitude);
       const longitude = Number(location?.longitude);
-      if (!code || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+
+      if (!code || seen.has(code) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+      seen.add(code);
+
       return [{
         code,
         name: String(point.display_name || `InPost Paczkomat ${code}`).slice(0, 120),
@@ -63,11 +93,14 @@ async function getParcelLockers(city: string, origin: { latitude: number; longit
         postalCode: String(details?.post_code || "").slice(0, 16),
         latitude,
         longitude,
-        distanceKm: origin ? distanceKm(origin.latitude, origin.longitude, latitude, longitude) : undefined,
+        distanceKm: origin
+          ? distanceKm(origin.latitude, origin.longitude, latitude, longitude)
+          : (Number.isFinite(Number(point.distance)) ? Number(point.distance) / 1000 : undefined),
       }];
     });
-    if (origin) points.sort((a, b) => Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999));
-    return points.slice(0, 24);
+
+    points.sort((a, b) => Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999));
+    return points.slice(0, 30);
   } catch (error) {
     console.error("parcel-lockers", error instanceof Error ? error.message : error);
     return [];
@@ -123,8 +156,8 @@ Deno.serve(async (request: Request) => {
       type: method.delivery_type,
     }));
 
-    const origin = country === "PL" ? await geocodeAddress(addressLine1, addressLine2, postalCode, city, country) : null;
-    const parcelLockers = country === "PL" ? await getParcelLockers(city, origin) : [];
+    const origin = country === "PL" ? await geocodeAddress(addressLine1, postalCode, city, country) : null;
+    const parcelLockers = country === "PL" ? await getParcelLockers(city, postalCode, origin) : [];
 
     return json({
       destination: { name, email, phone, country, addressLine1, addressLine2, postalCode, city, geocoded: Boolean(origin) },
