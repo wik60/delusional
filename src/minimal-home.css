@@ -81,3 +81,12 @@ main{min-height:calc(100vh - 142px)}
 }
 @media(max-width:520px){.shipping-form{grid-template-columns:1fr}.shipping-form .field-wide,.shipping-form button{grid-column:1}.announcement{font-size:8px}.site-header{padding:0 12px}.product-hero{padding-inline:12px}.image-stage{height:54vh;min-height:360px}.wordmark{font-size:17px}.nav-right{gap:10px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.pickup-map{height:320px;background:#eee}
+.pickup-list{max-height:340px;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
+.pickup-point{min-height:52px}
+.pickup-selected{line-height:1.45}
+@media(max-width:520px){
+  .pickup-map{height:280px}
+  .pickup-list{max-height:300px}
+}
