@@ -11,15 +11,17 @@
   <body class="admin-body">
     <main class="admin-shell">
       <section class="admin-login" id="loginView">
-        <a class="wordmark" href="./index.html">DELUSIONAL</a>
+        <a class="brand-logo brand-logo-light" href="./index.html" aria-label="Delusional Crew — strona główna"><img src="./images/brand-mark.png" alt="" /></a>
         <div class="login-card">
           <p class="eyebrow">PANEL ADMINISTRATORA</p>
           <h1>ZALOGUJ SIĘ.</h1>
-          <p>Panel jest dostępny wyłącznie dla zatwierdzonego adresu administratora. Link do logowania otrzymasz e-mailem.</p>
+          <p>Panel jest dostępny wyłącznie dla pracownika Delusional Crew.</p>
           <form id="loginForm">
-            <label for="adminEmail">E-MAIL</label>
-            <input id="adminEmail" type="email" required autocomplete="email" />
-            <button class="button button-light" type="submit">WYŚLIJ LINK DO LOGOWANIA</button>
+            <label for="adminUsername">LOGIN</label>
+            <input id="adminUsername" type="text" required autocomplete="username" autocapitalize="none" spellcheck="false" />
+            <label for="adminPassword">HASŁO</label>
+            <input id="adminPassword" type="password" required autocomplete="current-password" />
+            <button class="button button-light" type="submit">ZALOGUJ SIĘ</button>
           </form>
           <p class="form-message" id="loginMessage" role="alert"></p>
         </div>
@@ -27,7 +29,7 @@
 
       <section class="admin-dashboard" id="dashboardView" hidden>
         <aside class="admin-sidebar">
-          <a class="wordmark" href="./index.html">DELUSIONAL</a>
+          <a class="brand-logo brand-logo-light" href="./index.html" aria-label="Delusional Crew — strona główna"><img src="./images/brand-mark.png" alt="" /></a>
           <nav aria-label="Panel administratora">
             <button class="active" type="button">ZAMÓWIENIA</button>
           </nav>

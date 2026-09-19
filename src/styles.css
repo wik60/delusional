@@ -41,6 +41,9 @@ img, video { max-width: 100%; display: block; }
   font-weight: 900;
   letter-spacing: -0.06em;
 }
+.brand-logo { width: 46px; height: 34px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
+.brand-logo img { width: 100%; height: 100%; object-fit: contain; filter: brightness(0); }
+.brand-logo-light img { filter: brightness(0) invert(1); }
 .site-header nav { display: flex; gap: 2.5rem; font-size: .66rem; font-weight: 700; letter-spacing: .13em; }
 .site-header nav a, .hero-scroll { border-bottom: 1px solid transparent; }
 .site-header nav a:hover, .hero-scroll:hover { border-color: currentColor; }
@@ -129,7 +132,7 @@ img, video { max-width: 100%; display: block; }
   transition: opacity .25s;
 }
 .product-card-media:hover .media-hint { opacity: .65; }
-.product-card-copy { padding: .8rem .1rem .7rem; text-align: center; }
+.product-card-copy { display: block; padding: .8rem .1rem .7rem; text-align: center; }
 .product-card-copy h2 {
   margin: 0;
   font-size: .78rem;

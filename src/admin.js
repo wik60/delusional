@@ -3,6 +3,8 @@ import { supabase } from "./supabase.js";
 
 const money = new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" });
 const date = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" });
+const ADMIN_USERNAME = "delusionalemployee";
+const ADMIN_AUTH_EMAIL = "delusionalemployee@admin.delusionalcrew.pl";
 
 const statusLabels = {
   pending: "OCZEKUJE",
@@ -133,22 +135,31 @@ els.loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = els.loginForm.querySelector("button");
   button.disabled = true;
-  els.loginMessage.textContent = "WYSYŁANIE LINKU…";
-  const email = document.querySelector("#adminEmail").value.trim();
-  const redirectTo = `${window.location.origin}${window.location.pathname}`;
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+  els.loginMessage.textContent = "LOGOWANIE…";
+  const username = document.querySelector("#adminUsername").value.trim().toLowerCase();
+  const password = document.querySelector("#adminPassword").value;
+  if (username !== ADMIN_USERNAME) {
+    els.loginMessage.textContent = "NIEPRAWIDŁOWY LOGIN LUB HASŁO.";
+    button.disabled = false;
+    return;
+  }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: ADMIN_AUTH_EMAIL,
+    password,
   });
-  els.loginMessage.textContent = error
-    ? "NIE UDAŁO SIĘ WYSŁAĆ LINKU. SPRAWDŹ ADRES I SPRÓBUJ PONOWNIE."
-    : "LINK ZOSTAŁ WYSŁANY. SPRAWDŹ SKRZYNKĘ E-MAIL.";
+  if (error || !data.user || !(await verifyAdmin(data.user))) {
+    if (data.user) await supabase.auth.signOut();
+    els.loginMessage.textContent = "NIEPRAWIDŁOWY LOGIN LUB HASŁO.";
+  } else {
+    els.loginMessage.textContent = "";
+    await showDashboard(data.user);
+  }
   button.disabled = false;
 });
 
 async function showDashboard(user) {
   setView(true);
-  els.adminUser.textContent = user.email;
+  els.adminUser.textContent = ADMIN_USERNAME;
   await loadOrders();
 }
 

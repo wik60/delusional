@@ -15,6 +15,7 @@ Deno.serve(async (request: Request) => {
 
   try {
     const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
+    const stripePublishableKey = Deno.env.get("STRIPE_PUBLISHABLE_KEY");
     const storefrontUrl = Deno.env.get("STOREFRONT_URL");
     if (!stripeSecret || !storefrontUrl) return json({ error: "Checkout is not configured" }, 503);
 
@@ -23,7 +24,9 @@ Deno.serve(async (request: Request) => {
     const size = String(payload.size || "").toUpperCase();
     const shippingCountry = String(payload.shippingCountry || "").toUpperCase();
     const shippingMethodId = String(payload.shippingMethodId || "");
+    const elementsMode = payload.uiMode === "elements";
     const quantity = Number(payload.quantity);
+    if (elementsMode && !stripePublishableKey) return json({ error: "Checkout is not configured" }, 503);
     if (!productSlug || !size || !shippingMethodId || !["PL", "DK"].includes(shippingCountry) || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
       return json({ error: "Invalid cart" }, 400);
     }
@@ -113,7 +116,7 @@ Deno.serve(async (request: Request) => {
       });
     }
 
-    const session = await stripeClient.checkout.sessions.create({
+    const baseSession: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       integration_identifier: "delusional_qmwrpzka",
       customer_creation: "always",
@@ -121,8 +124,17 @@ Deno.serve(async (request: Request) => {
       shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
       line_items: lineItems,
       metadata: { order_id: order.id, order_number: order.order_number, shipping_method_id: shippingMethod.id },
-      success_url: `${storefrontUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${storefrontUrl}?payment=cancelled`,
+    };
+
+    const normalizedStorefrontUrl = storefrontUrl.endsWith("/") ? storefrontUrl : `${storefrontUrl}/`;
+    const session = await stripeClient.checkout.sessions.create(elementsMode ? {
+      ...baseSession,
+      ui_mode: "elements",
+      return_url: `${normalizedStorefrontUrl}product.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+    } : {
+      ...baseSession,
+      success_url: `${normalizedStorefrontUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${normalizedStorefrontUrl}?payment=cancelled`,
     });
 
     const { error: updateError } = await supabaseAdmin
@@ -131,6 +143,13 @@ Deno.serve(async (request: Request) => {
       .eq("id", order.id);
     if (updateError) throw updateError;
 
+    if (elementsMode) {
+      return json({
+        clientSecret: session.client_secret,
+        publishableKey: stripePublishableKey,
+        orderNumber: order.order_number,
+      });
+    }
     return json({ url: session.url });
   } catch (error) {
     console.error("create-checkout", error instanceof Error ? error.message : error);
