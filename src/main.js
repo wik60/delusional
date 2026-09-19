@@ -247,7 +247,7 @@ async function loadCatalog() {
 }
 
 function productGalleryImages(item) {
-  if (Array.isArray(item.gallery_images) && item.gallery_images.length) {
+  if (Array.isArray(item.gallery_images)) {
     return item.gallery_images.filter((url) => typeof url === "string" && url.trim());
   }
 
