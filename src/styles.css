@@ -422,3 +422,16 @@ footer small { opacity: .55; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.label-cell{min-width:190px}
+.label-status{display:inline-block;padding:.35rem .45rem;background:#eee;font-size:.58rem;font-weight:800;letter-spacing:.06em}
+.label-status-generated{background:#dceeff}
+.label-status-printed{background:#d8ffd2}
+.label-status-failed{background:#ffd6d6}
+.label-status-generating{background:#fff0bd}
+.label-status-needs_configuration{background:#ffe5bf}
+.label-actions{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.45rem}
+.label-button{border:0;background:#111;color:#fff;padding:.5rem .55rem;font-size:.56rem;font-weight:800;letter-spacing:.04em;cursor:pointer}
+.label-button-secondary{background:#fff;color:#111;border:1px solid #111}
+.label-button:disabled{opacity:.45;cursor:wait}
+.label-cell .label-error{color:#a32020;max-width:260px}
