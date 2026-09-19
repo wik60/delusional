@@ -39,11 +39,14 @@ const els = Object.fromEntries([
   "cartQtyDown","cartQtyUp","shippingForm","shippingName","shippingEmail","shippingPhone","shippingCountry","shippingAddress1","shippingAddress2","shippingCity","shippingPostal","shippingMessage",
   "shippingOptionsStep","shippingQuotes","pickupPicker","pickupSelected","pickupMap","pickupList","checkoutButton",
   "checkoutMessage","sizeGuideToggle","sizeGuide","qtyDown","qtyUp","qtyValue","addToCart","productMessage",
-  "frontImage","backImage","cartProductImage","prevImage","nextImage","imageStage","toast",
+  "frontImage","backImage","cartProductImage","prevImage","nextImage","imageStage","toast", "productName",
+  "productCode", "productDescription", "currentPrice", "comparePrice", "productSwitcher", "announcement",
+  "sizeOptions", "cartProductName",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
-const sizeButtons = [...document.querySelectorAll("[data-size]")];
+let sizeButtons = [...document.querySelectorAll("[data-size]")];
 const viewButtons = [...document.querySelectorAll("[data-view]")];
+const requestedSlug = new URLSearchParams(location.search).get("product") || PRODUCT.slug;
 
 let selectedSize = "";
 let quantity = 1;
@@ -68,8 +71,9 @@ function escapeHtml(value) {
 function readCart() {
   try {
     const parsed = JSON.parse(localStorage.getItem(CART_KEY));
-    if (!parsed || !PRODUCT.sizes.includes(parsed.size)) return null;
+    if (!parsed || typeof parsed.size !== "string") return null;
     return {
+      productSlug: parsed.productSlug || PRODUCT.slug,
       size: parsed.size,
       quantity: Math.max(1, Math.min(10, Number(parsed.quantity) || 1)),
     };
@@ -131,30 +135,116 @@ function reconcileInventory() {
 }
 
 async function loadCatalog() {
-  const { data: product, error } = await supabase
+  const [{ data: product, error }, { data: catalog }] = await Promise.all([
+    supabase
     .from("products")
-    .select("front_image_url, back_image_url, image_url, product_variants(size, stock, reserved_stock, active)")
-    .eq("slug", PRODUCT.slug)
-    .single();
+    .select("slug, name, description, price, compare_at_price, currency, size_guide, front_image_url, back_image_url, image_url, product_variants(size, stock, reserved_stock, active)")
+    .eq("slug", requestedSlug)
+    .single(),
+    supabase.from("products").select("slug, name").order("created_at", { ascending: true }),
+  ]);
 
   if (error || !product) {
     console.error("catalog", error);
+    showMessage(els.productMessage, "PRODUCT COULD NOT BE LOADED.");
     return;
   }
 
-  const front = product.front_image_url || product.image_url;
-  const back = product.back_image_url;
-  if (front) {
-    els.frontImage.src = front;
-    els.cartProductImage.src = front;
+  PRODUCT.slug = product.slug;
+  PRODUCT.name = product.name;
+  PRODUCT.price = Number(product.price);
+  PRODUCT.compareAtPrice = product.compare_at_price == null ? null : Number(product.compare_at_price);
+  PRODUCT.currency = product.currency;
+  PRODUCT.sizes = (product.product_variants || []).filter((variant) => variant.active).map((variant) => variant.size);
+
+  els.productName.textContent = product.name;
+  els.cartProductName.textContent = product.name;
+  els.productDescription.textContent = product.description || "";
+  els.currentPrice.textContent = `${PRODUCT.price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${PRODUCT.currency}`;
+  els.comparePrice.hidden = PRODUCT.compareAtPrice == null;
+  els.comparePrice.textContent = PRODUCT.compareAtPrice == null
+    ? ""
+    : `${PRODUCT.compareAtPrice.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${PRODUCT.currency}`;
+  els.addToCart.textContent = `ADD TO CART — ${PRODUCT.price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${PRODUCT.currency}`;
+  els.announcement.textContent = `${product.name} — AVAILABLE NOW`;
+  document.title = `${product.name} — DELUSIONALCREW`;
+  document.querySelector('meta[name="description"]')?.setAttribute("content", `${product.name} — Delusional Crew.`);
+
+  const activeCatalog = catalog || [];
+  const productIndex = Math.max(0, activeCatalog.findIndex((item) => item.slug === product.slug));
+  els.productCode.textContent = `DELUSIONAL / ${String(productIndex + 1).padStart(3, "0")}`;
+  els.productSwitcher.replaceChildren();
+  if (activeCatalog.length > 1) {
+    const caption = document.createElement("span");
+    caption.textContent = "OTHER PRODUCTS";
+    els.productSwitcher.append(caption);
+    for (const item of activeCatalog) {
+      const link = document.createElement("a");
+      link.href = `./index.html?product=${encodeURIComponent(item.slug)}`;
+      link.textContent = item.name;
+      link.classList.toggle("active", item.slug === product.slug);
+      els.productSwitcher.append(link);
+    }
   }
-  if (back) els.backImage.src = back;
+
+  els.sizeOptions.replaceChildren();
+  for (const variant of (product.product_variants || []).filter((item) => item.active)) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.size = variant.size;
+    button.textContent = variant.size;
+    els.sizeOptions.append(button);
+  }
+  sizeButtons = [...els.sizeOptions.querySelectorAll("[data-size]")];
+  bindSizeButtons();
+
+  els.sizeGuide.replaceChildren();
+  const sizeGuide = Array.isArray(product.size_guide) ? product.size_guide : [];
+  for (const row of sizeGuide) {
+    const line = document.createElement("div");
+    const size = document.createElement("span");
+    size.textContent = row.size || "—";
+    const measurements = document.createElement("span");
+    measurements.textContent = [row.chest, row.length, row.sleeve].filter(Boolean).join(" / ") + " CM";
+    line.append(size, measurements);
+    els.sizeGuide.append(line);
+  }
+  if (sizeGuide.length) {
+    const legend = document.createElement("small");
+    legend.textContent = "CHEST / LENGTH / SLEEVE";
+    els.sizeGuide.append(legend);
+  }
+  els.sizeGuideToggle.hidden = sizeGuide.length === 0;
+
+  const classic = product.slug === "delusional-classic-zip-up";
+  const front = product.front_image_url || product.image_url || (classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png");
+  const back = product.back_image_url || (classic ? "./images/classic-zip-back.jpg" : front);
+  els.frontImage.src = front;
+  els.cartProductImage.src = front;
+  els.backImage.src = back;
+
+  els.frontImage.alt = `${product.name} — front`;
+  els.backImage.alt = `${product.name} — back`;
+  els.cartProductImage.alt = product.name;
+
+  if (cart && cart.productSlug !== PRODUCT.slug) {
+    cart = null;
+    localStorage.removeItem(CART_KEY);
+    resetDelivery();
+    showToast("CART CLEARED FOR SELECTED PRODUCT");
+  }
 
   variantStocks = new Map((product.product_variants || []).map((variant) => [
     variant.size,
     variant.active ? Math.max(0, Number(variant.stock) - Number(variant.reserved_stock || 0)) : 0,
   ]));
   inventoryLoaded = true;
+  if (cart && PRODUCT.sizes.includes(cart.size)) {
+    selectedSize = cart.size;
+    quantity = cart.quantity;
+    els.qtyValue.textContent = String(quantity);
+    sizeButtons.forEach((button) => button.classList.toggle("active", button.dataset.size === selectedSize));
+  }
   reconcileInventory();
 }
 
@@ -403,15 +493,19 @@ function renderPickupPicker() {
   setTimeout(() => pickupMap.invalidateSize(), 80);
 }
 
-sizeButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    selectedSize = button.dataset.size;
-    quantity = Math.max(1, Math.min(quantity, maxQuantity(selectedSize)));
-    els.qtyValue.textContent = String(quantity);
-    sizeButtons.forEach((item) => item.classList.toggle("active", item === button));
-    showMessage(els.productMessage, "");
+function bindSizeButtons() {
+  sizeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedSize = button.dataset.size;
+      quantity = Math.max(1, Math.min(quantity, maxQuantity(selectedSize)));
+      els.qtyValue.textContent = String(quantity);
+      sizeButtons.forEach((item) => item.classList.toggle("active", item === button));
+      showMessage(els.productMessage, "");
+    });
   });
-});
+}
+
+bindSizeButtons();
 
 viewButtons.forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
 els.prevImage.addEventListener("click", () => setView(activeView === "front" ? "back" : "front"));
@@ -449,7 +543,7 @@ els.addToCart.addEventListener("click", () => {
     showMessage(els.productMessage, "THIS QUANTITY IS NO LONGER AVAILABLE.");
     return;
   }
-  cart = { size: selectedSize, quantity };
+  cart = { productSlug: PRODUCT.slug, size: selectedSize, quantity };
   resetDelivery();
   saveCart();
   animateToCart();
@@ -592,13 +686,6 @@ document.querySelectorAll("[data-reveal]").forEach((element, index) => {
   element.style.transitionDelay = `${Math.min(index * 55, 220)}ms`;
   observer.observe(element);
 });
-
-if (cart) {
-  selectedSize = cart.size;
-  quantity = cart.quantity;
-  els.qtyValue.textContent = String(quantity);
-  sizeButtons.forEach((button) => button.classList.toggle("active", button.dataset.size === selectedSize));
-}
 
 if (new URLSearchParams(location.search).get("payment") === "cancelled") {
   showToast("PAYMENT CANCELLED");

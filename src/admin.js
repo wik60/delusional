@@ -18,7 +18,7 @@ const els = Object.fromEntries([
   "loginView", "dashboardView", "loginForm", "loginMessage", "adminUser", "logoutButton",
   "metricAll", "metricPaid", "metricToShip", "metricRevenue", "orderSearch", "statusFilter",
   "refreshOrders", "ordersBody", "ordersEmpty", "ordersMessage", "adminTitle", "ordersPanel",
-  "productsPanel", "refreshProducts", "productsGrid", "productsMessage",
+  "productsPanel", "refreshProducts", "productsGrid", "productsMessage", "newProductButton", "newProductSlot",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
@@ -66,7 +66,7 @@ async function loadProducts() {
   els.productsMessage.textContent = "ŁADOWANIE…";
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, slug, name, image_url, front_image_url, back_image_url, product_variants(id, size, stock, reserved_stock, active)")
+    .select("id, slug, name, description, price, compare_at_price, currency, active, size_guide, image_url, front_image_url, back_image_url, product_variants(id, size, stock, reserved_stock, active)")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -173,8 +173,9 @@ async function deleteOrder(order, button) {
 }
 
 function imageUrl(product, side) {
-  if (side === "front") return product.front_image_url || product.image_url || "./images/classic-zip-front.jpg";
-  return product.back_image_url || "./images/classic-zip-back.jpg";
+  const classic = product.slug === "delusional-classic-zip-up";
+  if (side === "front") return product.front_image_url || product.image_url || (classic ? "./images/classic-zip-front.jpg" : "./images/brand-mark.png");
+  return product.back_image_url || (classic ? "./images/classic-zip-back.jpg" : "./images/brand-mark.png");
 }
 
 function productImageEditor(product, side, label) {
@@ -206,69 +207,257 @@ function productImageEditor(product, side, label) {
 
 function renderProducts() {
   els.productsGrid.replaceChildren();
+  for (const product of products) els.productsGrid.append(renderProductEditor(product));
+}
 
-  for (const product of products) {
-    const card = document.createElement("article");
-    card.className = "product-admin-card";
+function slugify(value) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
 
-    const header = document.createElement("header");
-    const title = document.createElement("h2");
-    title.textContent = product.name;
-    const slug = document.createElement("small");
-    slug.textContent = product.slug;
-    header.append(title, slug);
+function labeledField(labelText, input) {
+  const label = document.createElement("label");
+  const caption = document.createElement("span");
+  caption.textContent = labelText;
+  label.append(caption, input);
+  return label;
+}
 
-    const images = document.createElement("div");
-    images.className = "product-images-admin";
-    images.append(
-      productImageEditor(product, "front", "PRZÓD"),
-      productImageEditor(product, "back", "TYŁ"),
-    );
+function textInput(value = "", type = "text") {
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value ?? "";
+  return input;
+}
 
-    const stockForm = document.createElement("form");
-    stockForm.className = "stock-form";
-    const stockTitle = document.createElement("h3");
-    stockTitle.textContent = "STAN MAGAZYNOWY";
-    stockForm.append(stockTitle);
+function addVariantRow(container, variant = {}) {
+  const row = document.createElement("div");
+  row.className = "variant-edit-row";
+  if (variant.id) row.dataset.variantId = variant.id;
 
-    const stockRows = document.createElement("div");
-    stockRows.className = "stock-rows";
-    const variants = [...(product.product_variants || [])].sort(
-      (a, b) => ["S", "M", "L", "XL"].indexOf(a.size) - ["S", "M", "L", "XL"].indexOf(b.size),
-    );
+  const size = textInput(variant.size || "");
+  size.className = "variant-size";
+  size.required = true;
+  size.maxLength = 12;
+  size.pattern = "[A-Za-z0-9]{1,12}";
+  if (variant.id) size.readOnly = true;
 
-    for (const variant of variants) {
-      const row = document.createElement("label");
-      row.className = "stock-row";
-      const size = document.createElement("strong");
-      size.textContent = variant.size;
-      const input = document.createElement("input");
-      input.type = "number";
-      input.inputMode = "numeric";
-      input.min = String(variant.reserved_stock || 0);
-      input.max = "99999";
-      input.step = "1";
-      input.required = true;
-      input.value = String(variant.stock);
-      input.dataset.variantId = variant.id;
-      const details = document.createElement("small");
-      details.textContent = `DOSTĘPNE: ${Math.max(0, variant.stock - (variant.reserved_stock || 0))} · ZAREZERWOWANE: ${variant.reserved_stock || 0}`;
-      row.append(size, input, details);
-      stockRows.append(row);
+  const stock = textInput(String(variant.stock ?? 0), "number");
+  stock.className = "variant-stock";
+  stock.required = true;
+  stock.min = String(variant.reserved_stock || 0);
+  stock.max = "99999";
+  stock.step = "1";
+
+  const info = document.createElement("small");
+  const reserved = Number(variant.reserved_stock || 0);
+  info.textContent = variant.id
+    ? `DOSTĘPNE: ${Math.max(0, Number(variant.stock) - reserved)} · ZAREZERWOWANE: ${reserved}`
+    : "NOWY WARIANT";
+
+  const remove = makeAdminButton("USUŃ", "variant-remove-button");
+  remove.addEventListener("click", () => {
+    if (container.children.length <= 1) {
+      els.productsMessage.textContent = "PRODUKT MUSI MIEĆ CO NAJMNIEJ JEDEN WARIANT.";
+      return;
     }
+    row.remove();
+  });
 
-    const save = makeAdminButton("ZAPISZ STANY", "save-stock-button");
-    save.type = "submit";
-    stockForm.append(stockRows, save);
-    stockForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (!stockForm.reportValidity()) return;
-      await saveStock(product, stockForm, save);
-    });
+  row.append(labeledField("ROZMIAR", size), labeledField("STAN", stock), info, remove);
+  container.append(row);
+}
 
-    card.append(header, images, stockForm);
-    els.productsGrid.append(card);
+function addGuideRow(container, guide = {}) {
+  const row = document.createElement("div");
+  row.className = "guide-edit-row";
+  for (const [key, label] of [["size", "ROZMIAR"], ["chest", "KLATKA (CM)"], ["length", "DŁUGOŚĆ (CM)"], ["sleeve", "RĘKAW (CM)"]]) {
+    const input = textInput(guide[key] || "");
+    input.className = `guide-${key}`;
+    input.maxLength = key === "size" ? 12 : 20;
+    if (key === "size") input.required = true;
+    row.append(labeledField(label, input));
   }
+  const remove = makeAdminButton("×", "variant-remove-button guide-remove-button");
+  remove.setAttribute("aria-label", "Usuń wiersz rozmiarówki");
+  remove.addEventListener("click", () => row.remove());
+  row.append(remove);
+  container.append(row);
+}
+
+function renderProductEditor(product = null) {
+  const isNew = !product?.id;
+  const draft = product || {
+    name: "",
+    slug: "",
+    description: "",
+    price: 220,
+    compare_at_price: null,
+    active: true,
+    size_guide: [],
+    product_variants: [
+      { size: "S", stock: 0 }, { size: "M", stock: 0 }, { size: "L", stock: 0 }, { size: "XL", stock: 0 },
+    ],
+  };
+
+  const card = document.createElement("article");
+  card.className = `product-admin-card${isNew ? " product-admin-card-new" : ""}`;
+  const form = document.createElement("form");
+  form.className = "product-details-form";
+
+  const header = document.createElement("header");
+  const title = document.createElement("h2");
+  title.textContent = isNew ? "NOWY PRODUKT" : draft.name;
+  header.append(title);
+  if (!isNew) {
+    const link = document.createElement("a");
+    link.className = "product-preview-link";
+    link.href = `./index.html?product=${encodeURIComponent(draft.slug)}`;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "OTWÓRZ PRODUKT ↗";
+    header.append(link);
+  }
+
+  const name = textInput(draft.name);
+  name.required = true;
+  name.minLength = 2;
+  name.maxLength = 120;
+  const slug = textInput(draft.slug);
+  slug.required = true;
+  slug.maxLength = 120;
+  slug.pattern = "[a-z0-9]+(?:-[a-z0-9]+)*";
+  let slugEdited = !isNew;
+  slug.addEventListener("input", () => { slugEdited = true; });
+  name.addEventListener("input", () => {
+    title.textContent = name.value.trim() || "NOWY PRODUKT";
+    if (!slugEdited) slug.value = slugify(name.value);
+  });
+
+  const description = document.createElement("textarea");
+  description.value = draft.description || "";
+  description.maxLength = 5000;
+  description.rows = 5;
+  const price = textInput(String(draft.price ?? 0), "number");
+  price.required = true;
+  price.min = "0";
+  price.max = "999999";
+  price.step = "0.01";
+  const comparePrice = textInput(draft.compare_at_price == null ? "" : String(draft.compare_at_price), "number");
+  comparePrice.min = "0";
+  comparePrice.max = "999999";
+  comparePrice.step = "0.01";
+  const active = document.createElement("input");
+  active.type = "checkbox";
+  active.checked = draft.active !== false;
+
+  const fields = document.createElement("div");
+  fields.className = "product-fields-grid";
+  fields.append(
+    labeledField("NAZWA", name),
+    labeledField("ADRES / SLUG", slug),
+    labeledField("OPIS", description),
+    labeledField("CENA (PLN)", price),
+    labeledField("CENA PRZEKREŚLONA (PLN, OPCJONALNIE)", comparePrice),
+    labeledField("WIDOCZNY W SKLEPIE", active),
+  );
+
+  const variantsSection = document.createElement("section");
+  variantsSection.className = "product-editor-section";
+  const variantsTitle = document.createElement("h3");
+  variantsTitle.textContent = "ROZMIARY I STAN MAGAZYNOWY";
+  const variantRows = document.createElement("div");
+  variantRows.className = "variant-edit-rows";
+  const variants = [...(draft.product_variants || [])].sort((a, b) => a.size.localeCompare(b.size, undefined, { numeric: true }));
+  for (const variant of variants) addVariantRow(variantRows, variant);
+  if (!variants.length) addVariantRow(variantRows);
+  const addVariant = makeAdminButton("+ DODAJ ROZMIAR", "editor-secondary-button");
+  addVariant.addEventListener("click", () => addVariantRow(variantRows));
+  variantsSection.append(variantsTitle, variantRows, addVariant);
+
+  const guideSection = document.createElement("section");
+  guideSection.className = "product-editor-section";
+  const guideTitle = document.createElement("h3");
+  guideTitle.textContent = "TABELA ROZMIAROWA";
+  const guideRows = document.createElement("div");
+  guideRows.className = "guide-edit-rows";
+  const guide = Array.isArray(draft.size_guide) ? draft.size_guide : [];
+  for (const row of guide) addGuideRow(guideRows, row);
+  if (!guide.length) {
+    for (const variant of variants) addGuideRow(guideRows, { size: variant.size });
+  }
+  const addGuide = makeAdminButton("+ DODAJ WIERSZ", "editor-secondary-button");
+  addGuide.addEventListener("click", () => addGuideRow(guideRows));
+  guideSection.append(guideTitle, guideRows, addGuide);
+
+  if (!isNew) {
+    const images = document.createElement("section");
+    images.className = "product-editor-section";
+    const imagesTitle = document.createElement("h3");
+    imagesTitle.textContent = "ZDJĘCIA PRODUKTU";
+    const imageGrid = document.createElement("div");
+    imageGrid.className = "product-images-admin";
+    imageGrid.append(productImageEditor(draft, "front", "PRZÓD"), productImageEditor(draft, "back", "TYŁ"));
+    images.append(imagesTitle, imageGrid);
+    form.append(header, fields, variantsSection, guideSection, images);
+  } else {
+    const hint = document.createElement("p");
+    hint.className = "product-create-hint";
+    hint.textContent = "Po utworzeniu produktu pojawi się opcja dodania zdjęć przodu i tyłu.";
+    form.append(header, fields, variantsSection, guideSection, hint);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "product-editor-actions";
+  const save = makeAdminButton(isNew ? "UTWÓRZ PRODUKT" : "ZAPISZ PRODUKT", "save-stock-button");
+  save.type = "submit";
+  actions.append(save);
+  if (isNew) {
+    const cancel = makeAdminButton("ANULUJ", "editor-secondary-button");
+    cancel.addEventListener("click", () => {
+      els.newProductSlot.replaceChildren();
+      els.newProductButton.disabled = false;
+    });
+    actions.append(cancel);
+  }
+  form.append(actions);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const variantPayload = [...variantRows.querySelectorAll(".variant-edit-row")].map((row) => ({
+      ...(row.dataset.variantId ? { id: row.dataset.variantId } : {}),
+      size: row.querySelector(".variant-size").value.trim().toUpperCase(),
+      stock: Number(row.querySelector(".variant-stock").value),
+    }));
+    const guidePayload = [...guideRows.querySelectorAll(".guide-edit-row")].map((row) => ({
+      size: row.querySelector(".guide-size").value.trim().toUpperCase(),
+      chest: row.querySelector(".guide-chest").value.trim(),
+      length: row.querySelector(".guide-length").value.trim(),
+      sleeve: row.querySelector(".guide-sleeve").value.trim(),
+    }));
+    await saveProduct({
+      product: draft,
+      name: name.value,
+      slug: slug.value,
+      description: description.value,
+      price: Number(price.value),
+      compareAtPrice: comparePrice.value === "" ? null : Number(comparePrice.value),
+      active: active.checked,
+      variants: variantPayload,
+      sizeGuide: guidePayload,
+      button: save,
+      isNew,
+    });
+  });
+
+  card.append(form);
+  return card;
 }
 
 async function uploadProductImage(product, side, file, button) {
@@ -316,38 +505,52 @@ async function uploadProductImage(product, side, file, button) {
   await loadProducts();
 }
 
-async function saveStock(product, form, button) {
+async function saveProduct({ product, name, slug, description, price, compareAtPrice, active, variants, sizeGuide, button, isNew }) {
   button.disabled = true;
   button.textContent = "ZAPISYWANIE…";
   els.productsMessage.textContent = "";
 
-  const updates = [...form.querySelectorAll("input[data-variant-id]")].map((input) => ({
-    id: input.dataset.variantId,
-    stock: Number(input.value),
-  }));
-
-  const invalid = updates.some((item) => !Number.isInteger(item.stock) || item.stock < 0 || item.stock > 99999);
+  const invalid = variants.some((item) => !item.size || !Number.isInteger(item.stock) || item.stock < 0 || item.stock > 99999);
   if (invalid) {
-    els.productsMessage.textContent = "STAN MUSI BYĆ LICZBĄ CAŁKOWITĄ OD 0 DO 99999.";
+    els.productsMessage.textContent = "KAŻDY ROZMIAR MUSI MIEĆ POPRAWNY STAN OD 0 DO 99999.";
     button.disabled = false;
-    button.textContent = "ZAPISZ STANY";
+    button.textContent = isNew ? "UTWÓRZ PRODUKT" : "ZAPISZ PRODUKT";
     return;
   }
 
-  const { error } = await supabase.rpc("admin_update_product_stock", {
-    p_product_id: product.id,
-    p_stocks: updates,
+  const { data: productId, error } = await supabase.rpc("admin_save_product", {
+    p_product_id: product.id || null,
+    p_name: name.trim(),
+    p_slug: slugify(slug),
+    p_description: description.trim(),
+    p_price: price,
+    p_compare_at_price: compareAtPrice,
+    p_active: active,
+    p_size_guide: sizeGuide,
+    p_variants: variants,
   });
 
   if (error) {
     console.error(error);
-    els.productsMessage.textContent = "NIE UDAŁO SIĘ ZAPISAĆ STANU. STAN NIE MOŻE BYĆ NIŻSZY NIŻ LICZBA ZAREZERWOWANYCH SZTUK.";
-    await loadProducts();
+    els.productsMessage.textContent = error.message?.includes("duplicate key")
+      ? "TAKI ADRES PRODUKTU LUB ROZMIAR JUŻ ISTNIEJE."
+      : "NIE UDAŁO SIĘ ZAPISAĆ PRODUKTU. SPRAWDŹ CENĘ, ROZMIARY I ZAREZERWOWANY STAN.";
+    button.disabled = false;
+    button.textContent = isNew ? "UTWÓRZ PRODUKT" : "ZAPISZ PRODUKT";
     return;
   }
 
-  els.productsMessage.textContent = `STAN PRODUKTU ${product.name} ZOSTAŁ ZAPISANY.`;
+  if (isNew) {
+    els.newProductSlot.replaceChildren();
+    els.newProductButton.disabled = false;
+  }
+  els.productsMessage.textContent = isNew
+    ? `PRODUKT ZOSTAŁ UTWORZONY. TERAZ MOŻESZ DODAĆ JEGO ZDJĘCIA.`
+    : `PRODUKT ${name.trim()} ZOSTAŁ ZAPISANY.`;
   await loadProducts();
+  if (isNew && productId) {
+    document.querySelector(`.product-admin-card form`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 async function setAdminView(view) {
@@ -506,6 +709,11 @@ els.logoutButton.addEventListener("click", async () => {
 });
 els.refreshOrders.addEventListener("click", loadOrders);
 els.refreshProducts.addEventListener("click", loadProducts);
+els.newProductButton.addEventListener("click", () => {
+  els.newProductSlot.replaceChildren(renderProductEditor());
+  els.newProductButton.disabled = true;
+  els.newProductSlot.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 els.orderSearch.addEventListener("input", renderOrders);
 els.statusFilter.addEventListener("change", renderOrders);
 document.querySelectorAll("[data-admin-view]").forEach((button) => {

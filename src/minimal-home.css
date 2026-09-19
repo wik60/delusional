@@ -20,8 +20,12 @@ main{min-height:calc(100vh - 142px)}
 .eyebrow{font-size:10px;letter-spacing:.16em;font-weight:700;margin:0 0 10px}
 .price-row{display:flex;gap:12px;align-items:center;margin-bottom:28px}
 .price-row strong{font-size:13px}.price-row s{opacity:.4}
-.product-description{font-size:10px;line-height:1.7;max-width:240px}
+.product-description{font-size:10px;line-height:1.7;max-width:240px;white-space:pre-line}
 .product-description p{margin:0 0 16px}
+.product-switcher{display:grid;gap:5px;margin:18px 0;font-size:8px;letter-spacing:.08em}
+.product-switcher>span{opacity:.45;margin-bottom:2px}
+.product-switcher a{width:max-content;max-width:100%;border-bottom:1px solid transparent;opacity:.55}
+.product-switcher a:hover,.product-switcher a.active{border-color:#000;opacity:1}
 .handwritten{margin-top:12px;color:#fff!important;font-family:Arial,Helvetica,sans-serif!important;font-size:12px!important;font-weight:800!important;transform:none;letter-spacing:.08em}
 .size-guide-toggle{border:0;background:#050505;color:#fff;padding:12px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:12px;min-width:150px;justify-content:space-between}
 .size-guide{margin-top:12px;width:250px;border-top:1px solid var(--ink);padding-top:8px;font-size:10px}
@@ -37,7 +41,7 @@ main{min-height:calc(100vh - 142px)}
 .view-switch button{border:0;background:transparent;font-size:9px;padding:4px 0;opacity:.35;cursor:pointer;border-bottom:1px solid transparent}
 .view-switch button.active{opacity:1;border-bottom-color:#000}
 .product-side-right{justify-self:end;width:min(260px,100%)}
-.size-options{display:flex;gap:2px;margin-bottom:24px}
+.size-options{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:24px}
 .size-options button{width:48px;height:38px;border:1px solid #a9a9a5;background:transparent;cursor:pointer;font-size:11px}
 .size-options button:hover,.size-options button.active{background:#090909;color:#fff;border-color:#090909}
 .size-options button.sold-out,.size-options button:disabled{opacity:.28;text-decoration:line-through;cursor:not-allowed;background:transparent;color:#090909;border-color:#a9a9a5}

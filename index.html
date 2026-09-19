@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <div class="announcement">DROP 001 — CLASSIC ZIP UP — AVAILABLE NOW</div>
+  <div class="announcement" id="announcement">DROP 001 — CLASSIC ZIP UP — AVAILABLE NOW</div>
 
   <header class="site-header">
     <nav class="nav-left" aria-label="Primary navigation">
@@ -37,24 +37,20 @@
     <section class="product-hero" id="product">
       <aside class="product-side product-side-left reveal" data-reveal>
         <div class="product-heading">
-          <p class="eyebrow">DELUSIONAL / 001</p>
-          <h1>CLASSIC ZIP UP</h1>
-          <div class="price-row"><strong>220 PLN</strong><s>260 PLN</s></div>
+          <p class="eyebrow" id="productCode">DELUSIONAL / 001</p>
+          <h1 id="productName">CLASSIC ZIP UP</h1>
+          <div class="price-row"><strong id="currentPrice">220 PLN</strong><s id="comparePrice">260 PLN</s></div>
         </div>
 
-        <div class="product-description">
-          <p>Heavyweight zip hoodie built around a clean, oversized silhouette.</p>
-          <p>420 GSM cotton<br>Boxy / cropped fit<br>Front + back graphic</p>
-        </div>
+        <div class="product-description" id="productDescription">Heavyweight zip hoodie built around a clean, oversized silhouette.</div>
+
+        <nav class="product-switcher" id="productSwitcher" aria-label="Products"></nav>
 
         <button class="size-guide-toggle handwritten" id="sizeGuideToggle" type="button" aria-expanded="false" aria-controls="sizeGuide">
           SIZE GUIDE <span>+</span>
         </button>
         <div class="size-guide" id="sizeGuide" hidden>
           <div><span>S</span><span>64 / 64 / 61 CM</span></div>
-          <div><span>M</span><span>66 / 66 / 62 CM</span></div>
-          <div><span>L</span><span>68 / 68 / 63 CM</span></div>
-          <div><span>XL</span><span>72 / 72 / 65 CM</span></div>
           <small>CHEST / LENGTH / SLEEVE</small>
         </div>
       </aside>
@@ -115,7 +111,7 @@
       <section class="cart-line">
         <img id="cartProductImage" src="https://raw.githubusercontent.com/wik60/delusional/main/public/images/classic-zip-front.jpg?v=2" alt="Delusional Classic Zip Up" />
         <div>
-          <h2>CLASSIC ZIP UP</h2>
+          <h2 id="cartProductName">CLASSIC ZIP UP</h2>
           <p>SIZE <span id="cartSize">—</span></p>
           <div class="cart-quantity">
             <button id="cartQtyDown" type="button">−</button>

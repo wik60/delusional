@@ -89,9 +89,13 @@
 
           <section class="products-panel" id="productsPanel" hidden>
             <div class="products-admin-toolbar">
-              <p>Zmieniaj zdjęcia produktu i stan magazynowy dla każdego rozmiaru.</p>
-              <button class="refresh-button" id="refreshProducts" type="button">ODŚWIEŻ</button>
+              <p>Dodawaj produkty oraz zmieniaj zdjęcia, opis, ceny, warianty i rozmiarówkę.</p>
+              <div>
+                <button class="refresh-button" id="newProductButton" type="button">+ DODAJ PRODUKT</button>
+                <button class="refresh-button refresh-button-secondary" id="refreshProducts" type="button">ODŚWIEŻ</button>
+              </div>
             </div>
+            <div id="newProductSlot"></div>
             <div class="products-admin-grid" id="productsGrid"></div>
             <p class="form-message" id="productsMessage" role="status"></p>
           </section>
