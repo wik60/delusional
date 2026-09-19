@@ -175,7 +175,7 @@ Deno.serve(async (request: Request) => {
     const session = await stripeClient.checkout.sessions.create({
       ...baseSession,
       success_url: `${normalizedStorefrontUrl}thank-you.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${normalizedStorefrontUrl}product.html?payment=cancelled`,
+      cancel_url: `${normalizedStorefrontUrl}index.html?payment=cancelled`,
     });
 
     const { error: updateError } = await supabaseAdmin
