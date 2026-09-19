@@ -155,7 +155,9 @@ Deno.serve(async (request: Request) => {
       integration_identifier: "delusional_qmwrpzka",
       customer_creation: "always",
       billing_address_collection: "auto",
-      shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
+      ...(pickupPoint ? {} : {
+        shipping_address_collection: { allowed_countries: [shippingCountry as "PL" | "DK"] },
+      }),
       line_items: lineItems,
       locale: "pl",
       custom_text: {
