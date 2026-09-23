@@ -33,6 +33,7 @@
           <nav aria-label="Panel administratora">
             <button class="active" type="button" data-admin-view="orders">ZAMÓWIENIA</button>
             <button type="button" data-admin-view="products">PRODUKTY</button>
+            <button type="button" data-admin-view="messages">WIADOMOŚCI</button>
           </nav>
           <button class="text-button" id="logoutButton" type="button">WYLOGUJ</button>
         </aside>
@@ -98,6 +99,19 @@
             <div id="newProductSlot"></div>
             <div class="products-admin-grid" id="productsGrid"></div>
             <p class="form-message" id="productsMessage" role="status"></p>
+          </section>
+
+          <section class="messages-panel" id="messagesPanel" hidden>
+            <div class="messages-toolbar">
+              <p>Wiadomości wysłane przez formularz kontaktowy.</p>
+              <button class="refresh-button" id="refreshMessages" type="button">ODŚWIEŻ</button>
+            </div>
+            <div class="messages-list" id="messagesList"></div>
+            <div class="orders-empty" id="messagesEmpty" hidden>
+              <h2>BRAK WIADOMOŚCI</h2>
+              <p>Nowe wiadomości od klientów pojawią się tutaj.</p>
+            </div>
+            <p class="form-message" id="messagesMessage" role="status"></p>
           </section>
         </div>
       </section>

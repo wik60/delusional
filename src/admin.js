@@ -19,10 +19,12 @@ const els = Object.fromEntries([
   "metricAll", "metricPaid", "metricToShip", "metricRevenue", "orderSearch", "statusFilter",
   "refreshOrders", "ordersBody", "ordersEmpty", "ordersMessage", "adminTitle", "ordersPanel",
   "productsPanel", "refreshProducts", "productsGrid", "productsMessage", "newProductButton", "newProductSlot",
+  "messagesPanel", "refreshMessages", "messagesList", "messagesEmpty", "messagesMessage",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
 let products = [];
+let messages = [];
 let activeAdminView = "orders";
 
 function setView(authenticated) {
@@ -78,6 +80,111 @@ async function loadProducts() {
   products = rows || [];
   els.productsMessage.textContent = "";
   renderProducts();
+}
+
+async function loadMessages() {
+  els.messagesMessage.textContent = "ŁADOWANIE…";
+  const { data: rows, error } = await supabase
+    .from("contact_messages")
+    .select("id, name, email, subject, message, status, reply_body, replied_at, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    els.messagesMessage.textContent = "NIE UDAŁO SIĘ WCZYTAĆ WIADOMOŚCI.";
+    return;
+  }
+
+  messages = rows || [];
+  els.messagesMessage.textContent = "";
+  renderMessages();
+}
+
+function renderMessages() {
+  els.messagesList.replaceChildren();
+  els.messagesEmpty.hidden = messages.length > 0;
+
+  for (const item of messages) {
+    const card = document.createElement("article");
+    card.className = `contact-message-card${item.status === "new" ? " is-new" : ""}`;
+
+    const header = document.createElement("header");
+    const identity = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = item.name;
+    const email = document.createElement("a");
+    email.href = `mailto:${item.email}`;
+    email.textContent = item.email;
+    identity.append(name, email);
+    const meta = document.createElement("small");
+    meta.textContent = `${item.status === "replied" ? "ODPOWIEDZIANO" : "NOWA"} · ${date.format(new Date(item.created_at))}`;
+    header.append(identity, meta);
+
+    const subject = document.createElement("h2");
+    subject.textContent = item.subject;
+    const body = document.createElement("p");
+    body.className = "contact-message-body";
+    body.textContent = item.message;
+    card.append(header, subject, body);
+
+    if (item.status === "replied") {
+      const reply = document.createElement("div");
+      reply.className = "contact-sent-reply";
+      const label = document.createElement("strong");
+      label.textContent = `WYSŁANA ODPOWIEDŹ${item.replied_at ? ` · ${date.format(new Date(item.replied_at))}` : ""}`;
+      const text = document.createElement("p");
+      text.textContent = item.reply_body || "";
+      reply.append(label, text);
+      card.append(reply);
+    } else {
+      const form = document.createElement("form");
+      form.className = "contact-reply-form";
+      const textarea = document.createElement("textarea");
+      textarea.required = true;
+      textarea.maxLength = 5000;
+      textarea.rows = 5;
+      textarea.placeholder = "NAPISZ ODPOWIEDŹ DO KLIENTA…";
+      const button = makeAdminButton("WYŚLIJ ODPOWIEDŹ", "save-stock-button");
+      button.type = "submit";
+      form.append(textarea, button);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        await sendContactReply(item, textarea.value, button);
+      });
+      card.append(form);
+    }
+
+    els.messagesList.append(card);
+  }
+}
+
+async function sendContactReply(message, reply, button) {
+  button.disabled = true;
+  button.textContent = "WYSYŁANIE…";
+  els.messagesMessage.textContent = "";
+
+  const { data, error } = await supabase.functions.invoke("send-contact-reply", {
+    body: { messageId: message.id, reply: reply.trim() },
+  });
+
+  let errorData = data;
+  if (error?.context?.json) {
+    try { errorData = await error.context.json(); } catch { /* Response body may already be consumed. */ }
+  }
+
+  if (error || !data?.sent) {
+    console.error(error || data);
+    els.messagesMessage.textContent = errorData?.code === "EMAIL_NOT_CONFIGURED"
+      ? "WYSYŁKA E-MAIL NIE JEST JESZCZE SKONFIGUROWANA. DODAJ KLUCZ RESEND I ZWERYFIKUJ DOMENĘ."
+      : "NIE UDAŁO SIĘ WYSŁAĆ ODPOWIEDZI. SPRÓBUJ PONOWNIE.";
+    button.disabled = false;
+    button.textContent = "WYŚLIJ ODPOWIEDŹ";
+    return;
+  }
+
+  els.messagesMessage.textContent = `ODPOWIEDŹ DO ${message.email} ZOSTAŁA WYSŁANA.`;
+  await loadMessages();
 }
 
 function renderMetrics() {
@@ -731,14 +838,15 @@ async function deleteProduct(product, button) {
 
 async function setAdminView(view) {
   activeAdminView = view;
-  const showingProducts = view === "products";
-  els.ordersPanel.hidden = showingProducts;
-  els.productsPanel.hidden = !showingProducts;
-  els.adminTitle.textContent = showingProducts ? "PRODUKTY" : "ZAMÓWIENIA";
+  els.ordersPanel.hidden = view !== "orders";
+  els.productsPanel.hidden = view !== "products";
+  els.messagesPanel.hidden = view !== "messages";
+  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI" }[view] || "PANEL";
   document.querySelectorAll("[data-admin-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.adminView === view);
   });
-  if (showingProducts) await loadProducts();
+  if (view === "products") await loadProducts();
+  if (view === "messages") await loadMessages();
 }
 
 function labelStatusText(order) {
@@ -874,7 +982,7 @@ els.loginForm.addEventListener("submit", async (event) => {
 async function showDashboard(user) {
   setView(true);
   els.adminUser.textContent = ADMIN_USERNAME;
-  await Promise.all([loadOrders(), loadProducts()]);
+  await Promise.all([loadOrders(), loadProducts(), loadMessages()]);
   await setAdminView(activeAdminView);
 }
 
@@ -885,6 +993,7 @@ els.logoutButton.addEventListener("click", async () => {
 });
 els.refreshOrders.addEventListener("click", loadOrders);
 els.refreshProducts.addEventListener("click", loadProducts);
+els.refreshMessages.addEventListener("click", loadMessages);
 els.newProductButton.addEventListener("click", () => {
   els.newProductSlot.replaceChildren(renderProductEditor());
   els.newProductButton.disabled = true;
