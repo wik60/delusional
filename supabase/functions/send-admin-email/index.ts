@@ -30,7 +30,7 @@ Deno.serve(async (request: Request) => {
     let recipients: Array<{ email: string; token?: string }> = [];
     if (mode === "customer") {
       const email = String(body.email || "").trim().toLowerCase();
-      const { data: order } = await adminClient.from("orders").select("id").eq("customer_email", email).eq("payment_status", "paid").limit(1).maybeSingle();
+      const { data: order } = await adminClient.from("orders").select("id").ilike("customer_email", email).eq("payment_status", "paid").limit(1).maybeSingle();
       if (!order) return json({ error: "Adres nie należy do klienta z opłaconym zamówieniem." }, 400);
       recipients = [{ email }];
     } else {
