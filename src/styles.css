@@ -459,6 +459,15 @@ footer small { opacity: .55; }
 .contact-message-card header strong { font-size: .8rem; }
 .contact-message-card header a, .contact-message-card header small { color: var(--muted); font-size: .64rem; }
 .contact-message-card h2 { margin: 1.2rem 0 .7rem; font-size: 1.25rem; }
+.contact-message-card:not(.is-expanded) h2 { margin-bottom: 0; }
+.contact-message-details[hidden] { display: none; }
+.contact-message-controls { display: flex !important; grid-template-columns: auto auto auto; align-items: center; justify-content: end; gap: .55rem !important; }
+.contact-message-toggle, .contact-message-delete { border: 0; background: transparent; padding: .35rem .45rem; font: inherit; font-size: .58rem; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
+.contact-message-toggle { color: var(--ink); }
+.contact-message-delete { color: #bd1111; }
+.contact-message-toggle:hover { background: #efefeb; }
+.contact-message-delete:hover { background: #fff0f0; }
+.contact-message-delete:disabled { opacity: .45; cursor: wait; }
 .contact-message-body, .contact-sent-reply p { margin: 0; white-space: pre-wrap; font-family: Arial, Helvetica, sans-serif; font-size: .78rem; line-height: 1.65; text-transform: none; }
 .contact-reply-form { display: grid; gap: .7rem; margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid #e3e3df; }
 .contact-reply-form textarea { width: 100%; min-height: 120px; resize: vertical; border: 1px solid #c8c8c3; border-radius: 0; background: #fff; padding: .8rem; font: 400 .78rem/1.55 Arial, Helvetica, sans-serif; text-transform: none; }
@@ -511,6 +520,7 @@ footer small { opacity: .55; }
   .orders-toolbar label { grid-column: auto; }
   .products-admin-toolbar, .product-admin-card > header, .product-details-form > header { align-items: flex-start; flex-direction: column; }
   .messages-toolbar, .contact-message-card > header { align-items: flex-start; flex-direction: column; }
+  .contact-message-controls { width: 100%; grid-template-columns: 1fr auto auto; justify-content: stretch; }
   .products-admin-toolbar > div { width: 100%; flex-direction: column; }
   .product-images-admin, .stock-rows { grid-template-columns: 1fr; }
   .product-fields-grid, .variant-edit-row, .guide-edit-row { grid-template-columns: 1fr; }

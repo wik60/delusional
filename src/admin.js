@@ -118,14 +118,39 @@ function renderMessages() {
     identity.append(name, email);
     const meta = document.createElement("small");
     meta.textContent = `${item.status === "replied" ? "ODPOWIEDZIANO" : "NOWA"} · ${date.format(new Date(item.created_at))}`;
-    header.append(identity, meta);
+    const controls = document.createElement("div");
+    controls.className = "contact-message-controls";
+    const toggleButton = document.createElement("button");
+    toggleButton.className = "contact-message-toggle";
+    toggleButton.type = "button";
+    toggleButton.textContent = "ROZWIŃ";
+    toggleButton.setAttribute("aria-expanded", "false");
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "contact-message-delete";
+    deleteButton.type = "button";
+    deleteButton.textContent = "USUŃ";
+    deleteButton.addEventListener("click", () => deleteContactMessage(item, deleteButton));
+    controls.append(meta, toggleButton, deleteButton);
+    header.append(identity, controls);
 
     const subject = document.createElement("h2");
     subject.textContent = item.subject;
+    const details = document.createElement("div");
+    details.className = "contact-message-details";
+    details.hidden = true;
     const body = document.createElement("p");
     body.className = "contact-message-body";
     body.textContent = item.message;
-    card.append(header, subject, body);
+    details.append(body);
+    card.append(header, subject, details);
+
+    toggleButton.addEventListener("click", () => {
+      const expanded = toggleButton.getAttribute("aria-expanded") === "true";
+      toggleButton.setAttribute("aria-expanded", String(!expanded));
+      toggleButton.textContent = expanded ? "ROZWIŃ" : "ZWIŃ";
+      details.hidden = expanded;
+      card.classList.toggle("is-expanded", !expanded);
+    });
 
     if (item.status === "replied") {
       const reply = document.createElement("div");
@@ -135,7 +160,7 @@ function renderMessages() {
       const text = document.createElement("p");
       text.textContent = item.reply_body || "";
       reply.append(label, text);
-      card.append(reply);
+      details.append(reply);
     } else {
       const form = document.createElement("form");
       form.className = "contact-reply-form";
@@ -152,11 +177,32 @@ function renderMessages() {
         if (!form.reportValidity()) return;
         await sendContactReply(item, textarea.value, button);
       });
-      card.append(form);
+      details.append(form);
     }
 
     els.messagesList.append(card);
   }
+}
+
+async function deleteContactMessage(message, button) {
+  if (!window.confirm(`Czy na pewno usunąć wiadomość od ${message.email}? Tej operacji nie można cofnąć.`)) return;
+
+  button.disabled = true;
+  button.textContent = "USUWANIE…";
+  els.messagesMessage.textContent = "";
+
+  const { error } = await supabase.from("contact_messages").delete().eq("id", message.id);
+  if (error) {
+    console.error(error);
+    els.messagesMessage.textContent = "NIE UDAŁO SIĘ USUNĄĆ WIADOMOŚCI.";
+    button.disabled = false;
+    button.textContent = "USUŃ";
+    return;
+  }
+
+  messages = messages.filter((item) => item.id !== message.id);
+  renderMessages();
+  els.messagesMessage.textContent = "WIADOMOŚĆ ZOSTAŁA USUNIĘTA.";
 }
 
 async function sendContactReply(message, reply, button) {
