@@ -11,7 +11,7 @@ form.addEventListener("submit", async (event) => {
 
   const button = form.querySelector("button");
   button.disabled = true;
-  button.textContent = "WYSYŁANIE…";
+  button.textContent = "SENDING…";
   status.textContent = "";
 
   const { error } = await supabase.from("contact_messages").insert({
@@ -23,12 +23,12 @@ form.addEventListener("submit", async (event) => {
 
   if (error) {
     console.error(error);
-    status.textContent = "NIE UDAŁO SIĘ WYSŁAĆ WIADOMOŚCI. SPRÓBUJ PONOWNIE.";
+    status.textContent = "COULDN'T SEND YOUR MESSAGE. PLEASE TRY AGAIN.";
   } else {
     form.reset();
-    status.textContent = "WIADOMOŚĆ ZOSTAŁA WYSŁANA. ODPOWIEMY NA PODANY E-MAIL.";
+    status.textContent = "MESSAGE SENT. WE'LL REPLY TO THE E-MAIL ADDRESS YOU PROVIDED.";
   }
 
   button.disabled = false;
-  button.textContent = "WYŚLIJ WIADOMOŚĆ →";
+  button.textContent = "SEND MESSAGE →";
 });
