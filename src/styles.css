@@ -449,6 +449,17 @@ footer small { opacity: .55; }
 .stock-row small { grid-column: 1 / -1; color: var(--muted); font-size: .54rem; letter-spacing: .04em; }
 .save-stock-button { margin-top: 1rem; min-width: 180px; }
 .messages-panel { margin-top: 2rem; }
+.audience-panel { margin-top: 2rem; }
+.audience-summary { display: inline-flex; align-items: baseline; gap: .7rem; margin: .5rem 0 1rem; }
+.audience-summary strong { font-size: 2rem; }
+.audience-summary span { color: var(--muted); font-size: .62rem; letter-spacing: .1em; }
+.audience-table { min-width: 720px; }
+.email-composer { background: var(--white); border: 1px solid #d2d2ce; padding: clamp(1rem, 2vw, 1.5rem); margin: 1rem 0; display: grid; gap: 1rem; }
+.email-composer h2, .email-composer p { margin: 0; }
+.email-composer p { color: var(--muted); font-size: .7rem; }
+.email-composer label { display: grid; gap: .45rem; font-size: .62rem; font-weight: 800; letter-spacing: .08em; }
+.email-composer input, .email-composer textarea { width: 100%; border: 1px solid #c8c8c2; background: #fafaf7; padding: .9rem; font: 400 .82rem/1.5 Arial, Helvetica, sans-serif; text-transform: none; }
+.composer-actions { display: flex; gap: .7rem; align-items: center; }
 .messages-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .messages-toolbar p { margin: 0; color: var(--muted); font-size: .76rem; }
 .messages-list { display: grid; gap: 1rem; }

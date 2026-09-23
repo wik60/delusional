@@ -20,11 +20,14 @@ const els = Object.fromEntries([
   "refreshOrders", "ordersBody", "ordersEmpty", "ordersMessage", "adminTitle", "ordersPanel",
   "productsPanel", "refreshProducts", "productsGrid", "productsMessage", "newProductButton", "newProductSlot",
   "messagesPanel", "refreshMessages", "messagesList", "messagesEmpty", "messagesMessage",
+  "customersPanel", "refreshCustomers", "customersCount", "customersBody", "customersEmpty", "customerComposer", "customersMessage",
+  "newsletterPanel", "refreshNewsletter", "newsletterForm", "newsletterSubject", "newsletterBody", "newsletterBodyRows", "newsletterCount", "newsletterEmpty", "newsletterMessage",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
 let products = [];
 let messages = [];
+let subscribers = [];
 let activeAdminView = "orders";
 
 function setView(authenticated) {
@@ -98,6 +101,95 @@ async function loadMessages() {
   messages = rows || [];
   els.messagesMessage.textContent = "";
   renderMessages();
+}
+
+function getCustomers() {
+  const grouped = new Map();
+  for (const order of orders.filter((item) => item.payment_status === "paid" && item.customer_email)) {
+    const email = order.customer_email.trim().toLowerCase();
+    const customer = grouped.get(email) || { email, name: order.customer_name || "", orders: 0, total: 0, lastPurchase: order.created_at };
+    customer.orders += 1;
+    customer.total += Number(order.total_amount || 0);
+    if (new Date(order.created_at) > new Date(customer.lastPurchase)) {
+      customer.lastPurchase = order.created_at;
+      customer.name = order.customer_name || customer.name;
+    }
+    grouped.set(email, customer);
+  }
+  return [...grouped.values()].sort((a, b) => new Date(b.lastPurchase) - new Date(a.lastPurchase));
+}
+
+function renderCustomers() {
+  const customers = getCustomers();
+  els.customersBody.replaceChildren();
+  els.customersCount.textContent = String(customers.length);
+  els.customersEmpty.hidden = customers.length > 0;
+  for (const customer of customers) {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td><strong>${escapeHtml(customer.name || "—")}</strong><small>${escapeHtml(customer.email)}</small></td><td>${customer.orders}</td><td>${date.format(new Date(customer.lastPurchase))}</td><td><strong>${money.format(customer.total)}</strong></td><td class="customer-action"></td>`;
+    const button = makeAdminButton("NAPISZ", "label-button");
+    button.addEventListener("click", () => renderCustomerComposer(customer));
+    row.querySelector(".customer-action").append(button);
+    els.customersBody.append(row);
+  }
+}
+
+function renderCustomerComposer(customer) {
+  els.customerComposer.innerHTML = `<form class="email-composer"><h2>WIADOMOŚĆ DO ${escapeHtml(customer.name || customer.email)}</h2><p>${escapeHtml(customer.email)}</p><label>TEMAT<input name="subject" maxlength="180" required></label><label>WIADOMOŚĆ<textarea name="message" maxlength="10000" rows="7" required></textarea></label><div class="composer-actions"><button class="button button-dark" type="submit">WYŚLIJ WIADOMOŚĆ</button><button class="refresh-button refresh-button-secondary" type="button">ANULUJ</button></div></form>`;
+  const form = els.customerComposer.querySelector("form");
+  form.querySelector("button[type=button]").addEventListener("click", () => els.customerComposer.replaceChildren());
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    button.textContent = "WYSYŁANIE…";
+    const values = new FormData(form);
+    const { data, error } = await supabase.functions.invoke("send-admin-email", { body: { mode: "customer", email: customer.email, subject: values.get("subject"), message: values.get("message") } });
+    if (error || !data?.sent) {
+      els.customersMessage.textContent = data?.error || "NIE UDAŁO SIĘ WYSŁAĆ WIADOMOŚCI.";
+      button.disabled = false;
+      button.textContent = "WYŚLIJ WIADOMOŚĆ";
+      return;
+    }
+    els.customerComposer.replaceChildren();
+    els.customersMessage.textContent = `WIADOMOŚĆ DO ${customer.email} ZOSTAŁA WYSŁANA.`;
+  });
+  els.customerComposer.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function loadNewsletter() {
+  els.newsletterMessage.textContent = "ŁADOWANIE…";
+  const { data, error } = await supabase.from("newsletter_subscribers").select("id, email, active, created_at, unsubscribed_at").order("created_at", { ascending: false });
+  if (error) {
+    console.error(error);
+    els.newsletterMessage.textContent = "NIE UDAŁO SIĘ WCZYTAĆ NEWSLETTERA.";
+    return;
+  }
+  subscribers = data || [];
+  els.newsletterMessage.textContent = "";
+  renderNewsletter();
+}
+
+function renderNewsletter() {
+  els.newsletterBodyRows.replaceChildren();
+  els.newsletterCount.textContent = String(subscribers.filter((item) => item.active).length);
+  els.newsletterEmpty.hidden = subscribers.length > 0;
+  for (const subscriber of subscribers) {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td><strong>${escapeHtml(subscriber.email)}</strong></td><td>${date.format(new Date(subscriber.created_at))}</td><td><span class="status">${subscriber.active ? "AKTYWNY" : "WYPISANY"}</span></td><td class="subscriber-action"></td>`;
+    const toggle = makeAdminButton(subscriber.active ? "WYPISZ" : "PRZYWRÓĆ", "label-button label-button-secondary");
+    toggle.addEventListener("click", () => setSubscriberActive(subscriber, !subscriber.active, toggle));
+    row.querySelector(".subscriber-action").append(toggle);
+    els.newsletterBodyRows.append(row);
+  }
+}
+
+async function setSubscriberActive(subscriber, active, button) {
+  button.disabled = true;
+  const { error } = await supabase.from("newsletter_subscribers").update({ active, unsubscribed_at: active ? null : new Date().toISOString() }).eq("id", subscriber.id);
+  if (error) els.newsletterMessage.textContent = "NIE UDAŁO SIĘ ZMIENIĆ STATUSU SUBSKRYPCJI.";
+  else await loadNewsletter();
+  button.disabled = false;
 }
 
 function renderMessages() {
@@ -887,12 +979,16 @@ async function setAdminView(view) {
   els.ordersPanel.hidden = view !== "orders";
   els.productsPanel.hidden = view !== "products";
   els.messagesPanel.hidden = view !== "messages";
-  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI" }[view] || "PANEL";
+  els.customersPanel.hidden = view !== "customers";
+  els.newsletterPanel.hidden = view !== "newsletter";
+  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI", customers: "KLIENCI", newsletter: "NEWSLETTER" }[view] || "PANEL";
   document.querySelectorAll("[data-admin-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.adminView === view);
   });
   if (view === "products") await loadProducts();
   if (view === "messages") await loadMessages();
+  if (view === "customers") { await loadOrders(); renderCustomers(); }
+  if (view === "newsletter") await loadNewsletter();
 }
 
 function labelStatusText(order) {
@@ -1040,6 +1136,24 @@ els.logoutButton.addEventListener("click", async () => {
 els.refreshOrders.addEventListener("click", loadOrders);
 els.refreshProducts.addEventListener("click", loadProducts);
 els.refreshMessages.addEventListener("click", loadMessages);
+els.refreshCustomers.addEventListener("click", async () => { await loadOrders(); renderCustomers(); });
+els.refreshNewsletter.addEventListener("click", loadNewsletter);
+els.newsletterForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const recipients = subscribers.filter((item) => item.active).length;
+  if (!recipients || !window.confirm(`Wysłać newsletter do ${recipients} aktywnych subskrybentów?`)) return;
+  const button = els.newsletterForm.querySelector("button");
+  button.disabled = true;
+  button.textContent = "WYSYŁANIE…";
+  const { data, error } = await supabase.functions.invoke("send-admin-email", { body: { mode: "newsletter", subject: els.newsletterSubject.value, message: els.newsletterBody.value } });
+  if (error || !data?.sent) els.newsletterMessage.textContent = data?.error || "NIE UDAŁO SIĘ WYSŁAĆ NEWSLETTERA.";
+  else {
+    els.newsletterForm.reset();
+    els.newsletterMessage.textContent = `NEWSLETTER ZOSTAŁ WYSŁANY DO ${data.recipientCount} OSÓB.`;
+  }
+  button.disabled = false;
+  button.textContent = "WYŚLIJ DO AKTYWNYCH SUBSKRYBENTÓW";
+});
 els.newProductButton.addEventListener("click", () => {
   els.newProductSlot.replaceChildren(renderProductEditor());
   els.newProductButton.disabled = true;

@@ -34,6 +34,8 @@
             <button class="active" type="button" data-admin-view="orders">ZAMÓWIENIA</button>
             <button type="button" data-admin-view="products">PRODUKTY</button>
             <button type="button" data-admin-view="messages">WIADOMOŚCI</button>
+            <button type="button" data-admin-view="customers">KLIENCI</button>
+            <button type="button" data-admin-view="newsletter">NEWSLETTER</button>
           </nav>
           <button class="text-button" id="logoutButton" type="button">WYLOGUJ</button>
         </aside>
@@ -112,6 +114,45 @@
               <p>Nowe wiadomości od klientów pojawią się tutaj.</p>
             </div>
             <p class="form-message" id="messagesMessage" role="status"></p>
+          </section>
+
+          <section class="audience-panel" id="customersPanel" hidden>
+            <div class="messages-toolbar">
+              <p>Klienci są tworzeni automatycznie na podstawie opłaconych zamówień.</p>
+              <button class="refresh-button" id="refreshCustomers" type="button">ODŚWIEŻ</button>
+            </div>
+            <div class="audience-summary"><strong id="customersCount">0</strong><span>KLIENTÓW</span></div>
+            <div class="orders-table-wrap">
+              <table class="orders-table audience-table">
+                <thead><tr><th>KLIENT</th><th>ZAMÓWIENIA</th><th>OSTATNI ZAKUP</th><th>WARTOŚĆ</th><th>AKCJE</th></tr></thead>
+                <tbody id="customersBody"></tbody>
+              </table>
+              <div class="orders-empty" id="customersEmpty" hidden><h2>BRAK KLIENTÓW</h2><p>Klienci pojawią się po opłaceniu zamówienia.</p></div>
+            </div>
+            <div id="customerComposer"></div>
+            <p class="form-message" id="customersMessage" role="status"></p>
+          </section>
+
+          <section class="audience-panel" id="newsletterPanel" hidden>
+            <div class="messages-toolbar">
+              <p>Lista osób, które zapisały się przez formularz newslettera.</p>
+              <button class="refresh-button" id="refreshNewsletter" type="button">ODŚWIEŻ</button>
+            </div>
+            <form class="email-composer" id="newsletterForm">
+              <h2>WYŚLIJ NEWSLETTER</h2>
+              <label>TEMAT<input id="newsletterSubject" maxlength="180" required /></label>
+              <label>WIADOMOŚĆ<textarea id="newsletterBody" maxlength="10000" rows="8" required></textarea></label>
+              <button class="button button-dark" type="submit">WYŚLIJ DO AKTYWNYCH SUBSKRYBENTÓW</button>
+            </form>
+            <div class="audience-summary"><strong id="newsletterCount">0</strong><span>AKTYWNYCH SUBSKRYBENTÓW</span></div>
+            <div class="orders-table-wrap">
+              <table class="orders-table audience-table">
+                <thead><tr><th>E-MAIL</th><th>DATA ZAPISU</th><th>STATUS</th><th>AKCJE</th></tr></thead>
+                <tbody id="newsletterBodyRows"></tbody>
+              </table>
+              <div class="orders-empty" id="newsletterEmpty" hidden><h2>BRAK SUBSKRYBENTÓW</h2><p>Nowe zapisy pojawią się tutaj.</p></div>
+            </div>
+            <p class="form-message" id="newsletterMessage" role="status"></p>
           </section>
         </div>
       </section>
