@@ -12,7 +12,7 @@ npm run dev
 ## Architektura
 
 - `index.html` — sklep, karta produktu, koszyk i zapis do newslettera
-- `admin.html` — logowanie administratora i panel zamówień
+- `admin/` — logowanie administratora i panel zamówień (`admin.html` przekierowuje na czysty adres)
 - `supabase/migrations` — schemat bazy oraz zasady RLS
 - `supabase/functions/create-checkout` — tworzenie bezpiecznej sesji Stripe Checkout
 - `supabase/functions/stripe-webhook` — oznaczanie zamówień jako opłacone
