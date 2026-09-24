@@ -61,6 +61,7 @@ let pickupMap = null;
 let pickupMarkers = null;
 let inventoryLoaded = false;
 let variantStocks = new Map();
+let salesEnabled = false;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -86,6 +87,37 @@ function saveCart() {
   if (cart) localStorage.setItem(CART_KEY, JSON.stringify(cart));
   else localStorage.removeItem(CART_KEY);
   renderCart();
+}
+
+function applySalesState() {
+  if (!els.addToCart) return;
+  if (salesEnabled) {
+    els.addToCart.disabled = false;
+    els.addToCart.textContent = `ADD TO CART — ${PRODUCT.price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${PRODUCT.currency}`;
+    els.announcement.textContent = `${PRODUCT.name} — AVAILABLE NOW`;
+  } else {
+    els.addToCart.disabled = true;
+    els.addToCart.textContent = "COMING SOON";
+    els.announcement.textContent = `${PRODUCT.name} — COMING SOON`;
+    showMessage(els.checkoutMessage, "COMING SOON — CHECKOUT IS TEMPORARILY CLOSED.");
+  }
+  renderCart();
+}
+
+async function loadSalesState() {
+  const { data, error } = await supabase
+    .from("store_settings")
+    .select("sales_enabled")
+    .eq("id", "storefront")
+    .single();
+
+  if (error || !data) {
+    console.error("store-settings", error);
+    salesEnabled = false;
+  } else {
+    salesEnabled = Boolean(data.sales_enabled);
+  }
+  applySalesState();
 }
 
 function availableStock(size) {
@@ -168,8 +200,7 @@ async function loadCatalog() {
   els.comparePrice.textContent = PRODUCT.compareAtPrice == null
     ? ""
     : `${PRODUCT.compareAtPrice.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${PRODUCT.currency}`;
-  els.addToCart.textContent = `ADD TO CART — ${PRODUCT.price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} ${PRODUCT.currency}`;
-  els.announcement.textContent = `${product.name} — AVAILABLE NOW`;
+  applySalesState();
   document.title = `${product.name} — DELUSIONALCREW`;
   document.querySelector('meta[name="description"]')?.setAttribute("content", `${product.name} — Delusional Crew.`);
 
@@ -347,8 +378,9 @@ function renderCart() {
     : "—";
   els.cartTotal.textContent = money.format(subtotal + delivery);
   const cartAvailable = availableStock(cart.size) >= cart.quantity;
-  els.checkoutButton.disabled = !cartAvailable || !selectedShipping || (selectedShipping.type === "parcel_locker" && !selectedPickup);
-  if (!cartAvailable) showMessage(els.checkoutMessage, "THE SELECTED QUANTITY IS NO LONGER AVAILABLE.");
+  els.checkoutButton.disabled = !salesEnabled || !cartAvailable || !selectedShipping || (selectedShipping.type === "parcel_locker" && !selectedPickup);
+  if (!salesEnabled) showMessage(els.checkoutMessage, "COMING SOON — CHECKOUT IS TEMPORARILY CLOSED.");
+  else if (!cartAvailable) showMessage(els.checkoutMessage, "THE SELECTED QUANTITY IS NO LONGER AVAILABLE.");
 }
 
 function openCart() {
@@ -620,6 +652,10 @@ els.qtyUp.addEventListener("click", () => {
 });
 
 els.addToCart.addEventListener("click", () => {
+  if (!salesEnabled) {
+    showMessage(els.productMessage, "COMING SOON.");
+    return;
+  }
   if (!requireSize()) return;
   if (availableStock(selectedSize) < quantity) {
     showMessage(els.productMessage, "THIS QUANTITY IS NO LONGER AVAILABLE.");
@@ -671,6 +707,10 @@ els.shippingCountry.addEventListener("change", () => {
 
 els.shippingForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!salesEnabled) {
+    showMessage(els.shippingMessage, "COMING SOON — CHECKOUT IS TEMPORARILY CLOSED.");
+    return;
+  }
   if (!cart || !els.shippingForm.reportValidity()) return;
 
   const submit = els.shippingForm.querySelector('button[type="submit"]');
@@ -716,6 +756,10 @@ els.shippingForm.addEventListener("submit", async (event) => {
 });
 
 els.checkoutButton.addEventListener("click", async () => {
+  if (!salesEnabled) {
+    showMessage(els.checkoutMessage, "COMING SOON — CHECKOUT IS TEMPORARILY CLOSED.");
+    return;
+  }
   if (!cart || !selectedShipping) return;
   if (selectedShipping.type === "parcel_locker" && !selectedPickup) {
     showMessage(els.checkoutMessage, "SELECT A PARCEL LOCKER FIRST.");
@@ -801,4 +845,4 @@ if (new URLSearchParams(location.search).get("payment") === "cancelled") {
 }
 
 renderCart();
-await loadCatalog();
+await Promise.all([loadCatalog(), loadSalesState()]);
