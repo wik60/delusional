@@ -73,6 +73,15 @@ Deno.serve(async (request: Request) => {
       { auth: { persistSession: false } },
     );
 
+    const { data: storeSettings, error: settingsError } = await supabaseAdmin
+      .from("store_settings")
+      .select("sales_enabled")
+      .eq("id", "storefront")
+      .single();
+    if (settingsError || !storeSettings?.sales_enabled) {
+      return json({ error: "Coming soon", code: "SALES_DISABLED" }, 503);
+    }
+
     const { error: cleanupError } = await supabaseAdmin.rpc("release_expired_stock_reservations");
     if (cleanupError) console.error("stock-reservation-cleanup", cleanupError.message);
 
