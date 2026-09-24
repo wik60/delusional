@@ -450,6 +450,13 @@ footer small { opacity: .55; }
 .save-stock-button { margin-top: 1rem; min-width: 180px; }
 .messages-panel { margin-top: 2rem; }
 .audience-panel { margin-top: 2rem; }
+.store-settings-panel { margin-top: 2rem; }
+.store-status-card { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: clamp(1.25rem, 3vw, 2rem); background: var(--white); border: 1px solid #d2d2ce; }
+.store-status-card h2 { margin: .3rem 0 .65rem; font-size: clamp(2rem, 5vw, 4.5rem); line-height: .9; letter-spacing: -.045em; }
+.store-status-card p:not(.eyebrow) { max-width: 620px; margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.6; }
+.sales-toggle-button { min-width: 210px; min-height: 52px; border: 1px solid var(--ink); background: var(--ink); color: var(--white); padding: .8rem 1rem; font-size: .65rem; font-weight: 800; letter-spacing: .09em; cursor: pointer; }
+.sales-toggle-button.is-live { background: #fff; color: var(--ink); }
+.sales-toggle-button:disabled { opacity: .45; cursor: wait; }
 .audience-summary { display: inline-flex; align-items: baseline; gap: .7rem; margin: .5rem 0 1rem; }
 .audience-summary strong { font-size: 2rem; }
 .audience-summary span { color: var(--muted); font-size: .62rem; letter-spacing: .1em; }
@@ -530,7 +537,8 @@ footer small { opacity: .55; }
   .orders-toolbar { grid-template-columns: 1fr; }
   .orders-toolbar label { grid-column: auto; }
   .products-admin-toolbar, .product-admin-card > header, .product-details-form > header { align-items: flex-start; flex-direction: column; }
-  .messages-toolbar, .contact-message-card > header { align-items: flex-start; flex-direction: column; }
+  .messages-toolbar, .contact-message-card > header, .store-status-card { align-items: flex-start; flex-direction: column; }
+  .sales-toggle-button { width: 100%; }
   .contact-message-controls { width: 100%; grid-template-columns: 1fr auto auto; justify-content: stretch; }
   .products-admin-toolbar > div { width: 100%; flex-direction: column; }
   .product-images-admin, .stock-rows { grid-template-columns: 1fr; }
