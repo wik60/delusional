@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Contact Delusional Crew." />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <title>Contact — Delusional Crew</title>
+  </head>
+  <body>
+    <header class="contact-header">
+      <a href="../">← BACK</a>
+      <a class="contact-logo" href="../" aria-label="Delusional Crew — home">
+        <img src="../images/brand-mark.png" alt="" />
+      </a>
+      <a href="mailto:kontakt@delusionalcrew.pl">E-MAIL</a>
+    </header>
+
+    <main class="contact-main">
+      <section class="contact-copy">
+        <p>DELUSIONAL CREW / CONTACT</p>
+        <h1>GET IN<br />TOUCH.</h1>
+        <a href="mailto:kontakt@delusionalcrew.pl">KONTAKT@DELUSIONALCREW.PL</a>
+      </section>
+
+      <form class="contact-form" id="contactForm">
+        <label>NAME<input id="contactName" required minlength="2" maxlength="120" autocomplete="name" /></label>
+        <label>E-MAIL<input id="contactEmail" required type="email" maxlength="160" autocomplete="email" /></label>
+        <label>SUBJECT<input id="contactSubject" required minlength="3" maxlength="160" /></label>
+        <label>MESSAGE<textarea id="contactMessage" required minlength="10" maxlength="5000" rows="8"></textarea></label>
+        <input class="contact-honeypot" id="contactCompany" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <button type="submit">SEND MESSAGE →</button>
+        <p class="contact-status" id="contactStatus" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <script type="module" src="../src/contact.js"></script>
+  </body>
+</html>
