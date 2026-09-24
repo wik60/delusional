@@ -36,6 +36,7 @@
             <button type="button" data-admin-view="messages">WIADOMOŚCI</button>
             <button type="button" data-admin-view="customers">KLIENCI</button>
             <button type="button" data-admin-view="newsletter">NEWSLETTER</button>
+            <button type="button" data-admin-view="settings">USTAWIENIA</button>
           </nav>
           <button class="text-button" id="logoutButton" type="button">WYLOGUJ</button>
         </aside>
@@ -131,6 +132,18 @@
             </div>
             <div id="customerComposer"></div>
             <p class="form-message" id="customersMessage" role="status"></p>
+          </section>
+
+          <section class="store-settings-panel" id="settingsPanel" hidden>
+            <article class="store-status-card">
+              <div>
+                <p class="eyebrow">SPRZEDAŻ</p>
+                <h2 id="salesStatusTitle">COMING SOON</h2>
+                <p id="salesStatusDescription">Zakupy są zablokowane. Klienci widzą komunikat COMING SOON.</p>
+              </div>
+              <button class="sales-toggle-button" id="salesToggleButton" type="button" aria-pressed="false">WŁĄCZ SPRZEDAŻ</button>
+            </article>
+            <p class="form-message" id="settingsMessage" role="status"></p>
           </section>
 
           <section class="audience-panel" id="newsletterPanel" hidden>
