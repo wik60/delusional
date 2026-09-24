@@ -23,6 +23,7 @@ const els = Object.fromEntries([
   "customersPanel", "refreshCustomers", "customersCount", "customersBody", "customersEmpty", "customerComposer", "customersMessage",
   "newsletterPanel", "refreshNewsletter", "newsletterForm", "newsletterSubject", "newsletterBody", "newsletterBodyRows", "newsletterCount", "newsletterEmpty", "newsletterMessage",
   "settingsPanel", "salesToggleButton", "salesStatusTitle", "salesStatusDescription", "settingsMessage",
+  "analyticsPanel", "refreshAnalytics", "visitsAll", "visits30", "visits7", "visitsToday", "visitsChart", "analyticsRange", "analyticsMessage",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
@@ -31,6 +32,74 @@ let messages = [];
 let subscribers = [];
 let activeAdminView = "orders";
 let salesEnabled = false;
+
+const analyticsDate = new Intl.DateTimeFormat("pl-PL", { day: "2-digit", month: "2-digit" });
+
+function localDateKey(value = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Warsaw", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+}
+
+function analyticsDays(count) {
+  const days = [];
+  const now = new Date();
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const day = new Date(now);
+    day.setUTCDate(day.getUTCDate() - offset);
+    days.push({ key: localDateKey(day), date: day, count: 0 });
+  }
+  return days;
+}
+
+async function loadAnalytics() {
+  els.analyticsMessage.textContent = "ŁADOWANIE…";
+  const days = analyticsDays(30);
+  const { data, error } = await supabase
+    .from("page_visit_daily")
+    .select("visit_date, visit_count")
+    .gte("visit_date", days[0].key)
+    .order("visit_date", { ascending: true });
+  const { data: allRows, error: countError } = await supabase
+    .from("page_visit_daily")
+    .select("visit_count");
+
+  if (error || countError) {
+    console.error(error || countError);
+    els.analyticsMessage.textContent = "NIE UDAŁO SIĘ WCZYTAĆ STATYSTYK.";
+    return;
+  }
+
+  const totals = new Map();
+  for (const row of data || []) totals.set(row.visit_date, (totals.get(row.visit_date) || 0) + Number(row.visit_count || 0));
+  for (const day of days) day.count = totals.get(day.key) || 0;
+
+  const allVisits = (allRows || []).reduce((sum, row) => sum + Number(row.visit_count || 0), 0);
+
+  els.visitsAll.textContent = String(allVisits);
+  els.visits30.textContent = String(days.reduce((sum, day) => sum + day.count, 0));
+  els.visits7.textContent = String(days.slice(-7).reduce((sum, day) => sum + day.count, 0));
+  els.visitsToday.textContent = String(days.at(-1)?.count || 0);
+  els.analyticsRange.textContent = `${analyticsDate.format(days[0].date)} — ${analyticsDate.format(days.at(-1).date)}`;
+  renderVisitsChart(days);
+  els.analyticsMessage.textContent = "";
+}
+
+function renderVisitsChart(days) {
+  els.visitsChart.replaceChildren();
+  const max = Math.max(1, ...days.map((day) => day.count));
+  for (const [index, day] of days.entries()) {
+    const column = document.createElement("div");
+    column.className = "visit-column";
+    column.title = `${analyticsDate.format(day.date)}: ${day.count}`;
+    const value = document.createElement("span");
+    value.textContent = String(day.count);
+    const bar = document.createElement("i");
+    bar.style.height = `${Math.max(day.count ? 6 : 1, (day.count / max) * 100)}%`;
+    const label = document.createElement("small");
+    label.textContent = index % 5 === 0 || index === days.length - 1 ? analyticsDate.format(day.date) : "";
+    column.append(value, bar, label);
+    els.visitsChart.append(column);
+  }
+}
 
 function setView(authenticated) {
   els.loginView.hidden = authenticated;
@@ -1047,7 +1116,8 @@ async function setAdminView(view) {
   els.customersPanel.hidden = view !== "customers";
   els.newsletterPanel.hidden = view !== "newsletter";
   els.settingsPanel.hidden = view !== "settings";
-  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI", customers: "KLIENCI", newsletter: "NEWSLETTER", settings: "USTAWIENIA" }[view] || "PANEL";
+  els.analyticsPanel.hidden = view !== "analytics";
+  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI", customers: "KLIENCI", newsletter: "NEWSLETTER", settings: "USTAWIENIA", analytics: "STATYSTYKI" }[view] || "PANEL";
   document.querySelectorAll("[data-admin-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.adminView === view);
   });
@@ -1056,6 +1126,7 @@ async function setAdminView(view) {
   if (view === "customers") { await loadOrders(); renderCustomers(); }
   if (view === "newsletter") await loadNewsletter();
   if (view === "settings") await loadStoreSettings();
+  if (view === "analytics") await loadAnalytics();
 }
 
 function labelStatusText(order) {
@@ -1206,6 +1277,7 @@ els.refreshMessages.addEventListener("click", loadMessages);
 els.refreshCustomers.addEventListener("click", async () => { await loadOrders(); renderCustomers(); });
 els.refreshNewsletter.addEventListener("click", loadNewsletter);
 els.salesToggleButton.addEventListener("click", toggleSales);
+els.refreshAnalytics.addEventListener("click", loadAnalytics);
 els.newsletterForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const recipients = subscribers.filter((item) => item.active).length;

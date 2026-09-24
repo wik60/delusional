@@ -37,6 +37,7 @@
             <button type="button" data-admin-view="customers">KLIENCI</button>
             <button type="button" data-admin-view="newsletter">NEWSLETTER</button>
             <button type="button" data-admin-view="settings">USTAWIENIA</button>
+            <button type="button" data-admin-view="analytics">STATYSTYKI</button>
           </nav>
           <button class="text-button" id="logoutButton" type="button">WYLOGUJ</button>
         </aside>
@@ -166,6 +167,24 @@
               <div class="orders-empty" id="newsletterEmpty" hidden><h2>BRAK SUBSKRYBENTÓW</h2><p>Nowe zapisy pojawią się tutaj.</p></div>
             </div>
             <p class="form-message" id="newsletterMessage" role="status"></p>
+          </section>
+
+          <section class="analytics-panel" id="analyticsPanel" hidden>
+            <div class="messages-toolbar">
+              <p>Anonimowe odwiedziny sklepu. Jedna wizyta na podstronę w ramach sesji przeglądarki.</p>
+              <button class="refresh-button" id="refreshAnalytics" type="button">ODŚWIEŻ</button>
+            </div>
+            <div class="metrics analytics-metrics">
+              <article><span>WSZYSTKIE WIZYTY</span><strong id="visitsAll">0</strong></article>
+              <article><span>OSTATNIE 30 DNI</span><strong id="visits30">0</strong></article>
+              <article><span>OSTATNIE 7 DNI</span><strong id="visits7">0</strong></article>
+              <article><span>DZISIAJ</span><strong id="visitsToday">0</strong></article>
+            </div>
+            <article class="analytics-card">
+              <header><div><p class="eyebrow">RUCH NA STRONIE</p><h2>OSTATNIE 30 DNI</h2></div><span id="analyticsRange"></span></header>
+              <div class="visits-chart" id="visitsChart" role="img" aria-label="Wykres liczby wizyt z ostatnich 30 dni"></div>
+            </article>
+            <p class="form-message" id="analyticsMessage" role="status"></p>
           </section>
         </div>
       </section>
