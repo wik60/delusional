@@ -22,6 +22,7 @@ const els = Object.fromEntries([
   "messagesPanel", "refreshMessages", "messagesList", "messagesEmpty", "messagesMessage",
   "customersPanel", "refreshCustomers", "customersCount", "customersBody", "customersEmpty", "customerComposer", "customersMessage",
   "newsletterPanel", "refreshNewsletter", "newsletterForm", "newsletterSubject", "newsletterBody", "newsletterBodyRows", "newsletterCount", "newsletterEmpty", "newsletterMessage",
+  "settingsPanel", "salesToggleButton", "salesStatusTitle", "salesStatusDescription", "settingsMessage",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
@@ -29,6 +30,7 @@ let products = [];
 let messages = [];
 let subscribers = [];
 let activeAdminView = "orders";
+let salesEnabled = false;
 
 function setView(authenticated) {
   els.loginView.hidden = authenticated;
@@ -48,6 +50,69 @@ async function verifyAdmin(user) {
 
   const { data: created, error } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
   return !error && Boolean(created);
+}
+
+function renderSalesSetting() {
+  els.salesStatusTitle.textContent = salesEnabled ? "SPRZEDAŻ WŁĄCZONA" : "COMING SOON";
+  els.salesStatusDescription.textContent = salesEnabled
+    ? "Klienci mogą dodawać produkty do koszyka i przejść do płatności Stripe."
+    : "Zakupy są zablokowane. Klienci widzą komunikat COMING SOON.";
+  els.salesToggleButton.textContent = salesEnabled ? "WŁĄCZ COMING SOON" : "WŁĄCZ SPRZEDAŻ";
+  els.salesToggleButton.classList.toggle("is-live", salesEnabled);
+  els.salesToggleButton.setAttribute("aria-pressed", String(salesEnabled));
+}
+
+async function loadStoreSettings() {
+  els.settingsMessage.textContent = "ŁADOWANIE…";
+  const { data, error } = await supabase
+    .from("store_settings")
+    .select("sales_enabled")
+    .eq("id", "storefront")
+    .single();
+
+  if (error || !data) {
+    console.error(error);
+    salesEnabled = false;
+    renderSalesSetting();
+    els.settingsMessage.textContent = "NIE UDAŁO SIĘ WCZYTAĆ USTAWIEŃ SKLEPU.";
+    return;
+  }
+
+  salesEnabled = Boolean(data.sales_enabled);
+  renderSalesSetting();
+  els.settingsMessage.textContent = "";
+}
+
+async function toggleSales() {
+  const nextValue = !salesEnabled;
+  const confirmText = nextValue
+    ? "Włączyć sprzedaż? Klienci będą mogli od razu przejść do koszyka i Stripe."
+    : "Włączyć tryb COMING SOON? Zakupy zostaną natychmiast zablokowane.";
+
+  if (!window.confirm(confirmText)) return;
+
+  els.salesToggleButton.disabled = true;
+  els.settingsMessage.textContent = "ZAPISYWANIE…";
+  const { data, error } = await supabase
+    .from("store_settings")
+    .update({ sales_enabled: nextValue, updated_at: new Date().toISOString() })
+    .eq("id", "storefront")
+    .select("sales_enabled")
+    .single();
+
+  if (error || !data) {
+    console.error(error);
+    els.settingsMessage.textContent = "NIE UDAŁO SIĘ ZMIENIĆ TRYBU SPRZEDAŻY.";
+    els.salesToggleButton.disabled = false;
+    return;
+  }
+
+  salesEnabled = Boolean(data.sales_enabled);
+  renderSalesSetting();
+  els.settingsMessage.textContent = salesEnabled
+    ? "SPRZEDAŻ JEST TERAZ WŁĄCZONA."
+    : "TRYB COMING SOON JEST TERAZ WŁĄCZONY.";
+  els.salesToggleButton.disabled = false;
 }
 
 async function loadOrders() {
@@ -981,7 +1046,8 @@ async function setAdminView(view) {
   els.messagesPanel.hidden = view !== "messages";
   els.customersPanel.hidden = view !== "customers";
   els.newsletterPanel.hidden = view !== "newsletter";
-  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI", customers: "KLIENCI", newsletter: "NEWSLETTER" }[view] || "PANEL";
+  els.settingsPanel.hidden = view !== "settings";
+  els.adminTitle.textContent = { orders: "ZAMÓWIENIA", products: "PRODUKTY", messages: "WIADOMOŚCI", customers: "KLIENCI", newsletter: "NEWSLETTER", settings: "USTAWIENIA" }[view] || "PANEL";
   document.querySelectorAll("[data-admin-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.adminView === view);
   });
@@ -989,6 +1055,7 @@ async function setAdminView(view) {
   if (view === "messages") await loadMessages();
   if (view === "customers") { await loadOrders(); renderCustomers(); }
   if (view === "newsletter") await loadNewsletter();
+  if (view === "settings") await loadStoreSettings();
 }
 
 function labelStatusText(order) {
@@ -1124,7 +1191,7 @@ els.loginForm.addEventListener("submit", async (event) => {
 async function showDashboard(user) {
   setView(true);
   els.adminUser.textContent = ADMIN_USERNAME;
-  await Promise.all([loadOrders(), loadProducts(), loadMessages()]);
+  await Promise.all([loadOrders(), loadProducts(), loadMessages(), loadStoreSettings()]);
   await setAdminView(activeAdminView);
 }
 
@@ -1138,6 +1205,7 @@ els.refreshProducts.addEventListener("click", loadProducts);
 els.refreshMessages.addEventListener("click", loadMessages);
 els.refreshCustomers.addEventListener("click", async () => { await loadOrders(); renderCustomers(); });
 els.refreshNewsletter.addEventListener("click", loadNewsletter);
+els.salesToggleButton.addEventListener("click", toggleSales);
 els.newsletterForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const recipients = subscribers.filter((item) => item.active).length;
