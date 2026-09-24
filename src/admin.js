@@ -23,7 +23,7 @@ const els = Object.fromEntries([
   "customersPanel", "refreshCustomers", "customersCount", "customersBody", "customersEmpty", "customerComposer", "customersMessage",
   "newsletterPanel", "refreshNewsletter", "newsletterForm", "newsletterSubject", "newsletterBody", "newsletterBodyRows", "newsletterCount", "newsletterEmpty", "newsletterMessage",
   "settingsPanel", "salesToggleButton", "salesStatusTitle", "salesStatusDescription", "settingsMessage",
-  "analyticsPanel", "refreshAnalytics", "visitsAll", "visits30", "visits7", "visitsToday", "visitsChart", "analyticsRange", "analyticsMessage",
+  "analyticsPanel", "refreshAnalytics", "visitsAll", "visits30", "visits7", "visitsToday", "visitsChart", "analyticsRange", "analyticsMessage", "locationList", "locationsCount", "locationsEmpty",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 let orders = [];
@@ -61,9 +61,12 @@ async function loadAnalytics() {
   const { data: allRows, error: countError } = await supabase
     .from("page_visit_daily")
     .select("visit_count");
+  const { data: locationRows, error: locationError } = await supabase
+    .from("page_visit_location_daily")
+    .select("city, country, visit_count");
 
-  if (error || countError) {
-    console.error(error || countError);
+  if (error || countError || locationError) {
+    console.error(error || countError || locationError);
     els.analyticsMessage.textContent = "NIE UDAŁO SIĘ WCZYTAĆ STATYSTYK.";
     return;
   }
@@ -80,7 +83,35 @@ async function loadAnalytics() {
   els.visitsToday.textContent = String(days.at(-1)?.count || 0);
   els.analyticsRange.textContent = `${analyticsDate.format(days[0].date)} — ${analyticsDate.format(days.at(-1).date)}`;
   renderVisitsChart(days);
+  renderVisitLocations(locationRows || []);
   els.analyticsMessage.textContent = "";
+}
+
+function renderVisitLocations(rows) {
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = `${row.city}\u0000${row.country}`;
+    grouped.set(key, {
+      city: row.city,
+      country: row.country,
+      count: (grouped.get(key)?.count || 0) + Number(row.visit_count || 0),
+    });
+  }
+  const locations = [...grouped.values()].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city)).slice(0, 30);
+  els.locationList.replaceChildren();
+  els.locationsCount.textContent = `${grouped.size} ${grouped.size === 1 ? "LOKALIZACJA" : "LOKALIZACJI"}`;
+  els.locationsEmpty.hidden = locations.length > 0;
+
+  for (const location of locations) {
+    const row = document.createElement("div");
+    row.className = "location-row";
+    const name = document.createElement("strong");
+    name.textContent = `${location.city}, ${location.country}`;
+    const count = document.createElement("span");
+    count.textContent = String(location.count);
+    row.append(name, count);
+    els.locationList.append(row);
+  }
 }
 
 function renderVisitsChart(days) {
